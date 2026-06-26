@@ -1,0 +1,12 @@
+/home/wassim/Bureau/STAGE_DEVOX/appli/page_de_connexion/page_version_2/backend/src/main/java/com/example/auth/service/JwtService.java
+/home/wassim/Bureau/STAGE_DEVOX/appli/page_de_connexion/page_version_2/backend/src/main/java/com/example/auth/controller/AuthController.java
+/home/wassim/Bureau/STAGE_DEVOX/appli/page_de_connexion/page_version_2/backend/src/main/java/com/example/auth/config/SecurityConfig.java
+/home/wassim/Bureau/STAGE_DEVOX/appli/page_de_connexion/page_version_2/backend/src/main/java/com/example/auth/config/CorsConfig.java
+/home/wassim/Bureau/STAGE_DEVOX/appli/page_de_connexion/page_version_2/backend/src/main/java/com/example/auth/AuthApplication.java
+/home/wassim/Bureau/STAGE_DEVOX/appli/page_de_connexion/page_version_2/backend/src/main/java/com/example/auth/config/JwtAuthenticationFilter.java
+/home/wassim/Bureau/STAGE_DEVOX/appli/page_de_connexion/page_version_2/backend/src/main/java/com/example/auth/service/AuthService.java
+/home/wassim/Bureau/STAGE_DEVOX/appli/page_de_connexion/page_version_2/backend/src/main/java/com/example/auth/dto/RegisterRequest.java
+/home/wassim/Bureau/STAGE_DEVOX/appli/page_de_connexion/page_version_2/backend/src/main/java/com/example/auth/dto/AuthResponse.java
+/home/wassim/Bureau/STAGE_DEVOX/appli/page_de_connexion/page_version_2/backend/src/main/java/com/example/auth/repository/UserRepository.java
+/home/wassim/Bureau/STAGE_DEVOX/appli/page_de_connexion/page_version_2/backend/src/main/java/com/example/auth/model/User.java
+/home/wassim/Bureau/STAGE_DEVOX/appli/page_de_connexion/page_version_2/backend/src/main/java/com/example/auth/dto/LoginRequest.java

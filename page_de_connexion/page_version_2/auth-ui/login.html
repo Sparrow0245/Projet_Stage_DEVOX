@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Connexion</title>
+  <link rel="stylesheet" href="assets/styles.css">
+</head>
+
+<body>
+
+<div class="container">
+  <div class="card">
+    <h1>Connexion</h1>
+
+    <input id="email" type="email" placeholder="Email">
+    <input id="password" type="password" placeholder="Mot de passe">
+
+    <button onclick="login()">Se connecter</button>
+
+    <div class="message" id="msg"></div>
+
+    <div class="link">
+      Pas de compte ?
+      <a href="register.html">Créer un compte</a>
+    </div>
+  </div>
+</div>
+
+<script>
+async function login() {
+  const email = document.getElementById("email").value;
+  const password = document.getElementById("password").value;
+
+  const msg = document.getElementById("msg");
+  msg.textContent = "";
+
+  try {
+    const res = await fetch("http://localhost:8080/api/auth/login", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ email, password })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      msg.style.color = "red";
+      msg.textContent = data.error || "Erreur de connexion";
+      return;
+    }
+
+    msg.style.color = "green";
+    msg.textContent = data.message || "Connexion réussie";
+  } catch (err) {
+    msg.style.color = "red";
+    msg.textContent = "Serveur inaccessible";
+  }
+}
+</script>
+
+</body>
+</html>
