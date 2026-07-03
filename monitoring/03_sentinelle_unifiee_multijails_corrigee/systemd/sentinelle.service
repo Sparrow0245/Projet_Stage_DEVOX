@@ -1,0 +1,13 @@
+[Unit]
+Description=Sentinelle - Protection anti brute-force locale (equivalent Fail2Ban en Bash)
+After=network.target rsyslog.service
+
+[Service]
+Type=simple
+ExecStart=/opt/sentinelle/sentinelle.sh
+Restart=on-failure
+RestartSec=5
+User=root
+
+[Install]
+WantedBy=multi-user.target

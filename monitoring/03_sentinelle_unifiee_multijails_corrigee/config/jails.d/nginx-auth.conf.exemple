@@ -1,0 +1,11 @@
+# Exemple de jail pour un endpoint protégé par auth_basic sur nginx.
+# Renommer en .conf pour l'activer, et adapter le chemin du journal.
+
+NOM="nginx-auth"
+JOURNAL="/var/log/nginx/error.log"
+REGEX_ECHEC="user .* was not found in|password mismatch"
+REGEX_IP="([0-9]{1,3}\.){3}[0-9]{1,3}"
+
+MAX_TENTATIVES=5
+FENETRE_TEMPS=600
+DUREE_BAN=3600
