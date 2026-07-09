@@ -1,0 +1,11 @@
+[Unit]
+Description=Collecte périodique des métriques Sentinelle
+
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=1min
+
+
+[Install]
+WantedBy=timers.target
