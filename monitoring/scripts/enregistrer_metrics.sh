@@ -1,11 +1,8 @@
 #!/bin/bash
 
-BASE_DIR="$(dirname "$0")"
+BASE_DIR="$(cd "$(dirname "$0")" && pwd)"
 
-CONFIG="$BASE_DIR/../config/database.conf"
-
-
-source "$CONFIG"
+source "$BASE_DIR/../config/database.conf"
 
 
 DATA=$("$BASE_DIR/collecte_systeme.sh")
