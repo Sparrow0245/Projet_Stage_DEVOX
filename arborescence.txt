@@ -1,0 +1,200 @@
+.
+├── arborescence.txt
+├── Choix_methode_d-authentification.md
+├── monitoring
+│   ├── 01_sentinelle_multiscripts_original
+│   │   ├── opt_sentinelle
+│   │   │   ├── core
+│   │   │   │   └── sentinelle.sh
+│   │   │   ├── detection
+│   │   │   │   ├── correlation.sh
+│   │   │   │   └── detecteur.sh
+│   │   │   ├── installation.sh
+│   │   │   ├── response
+│   │   │   │   ├── gestion_ban.sh
+│   │   │   │   └── quarantaine.sh
+│   │   │   ├── security
+│   │   │   │   └── whitelist.sh
+│   │   │   └── system
+│   │   │       ├── log.sh
+│   │   │       ├── notification.sh
+│   │   │       └── scheduler.sh
+│   │   └── README_rangement.md
+│   ├── 02_sentinelle_version_simple_original
+│   │   ├── opt_sentinelle
+│   │   │   ├── configuration.conf
+│   │   │   ├── ip_bannies.db
+│   │   │   ├── liste_blanche.conf
+│   │   │   └── sentinelle.sh
+│   │   └── README_corrections.md
+│   ├── 03_sentinelle_unifiee_multijails_corrigee
+│   │   ├── config
+│   │   │   ├── jails.d
+│   │   │   │   ├── nginx-auth.conf.exemple
+│   │   │   │   └── ssh.conf
+│   │   │   ├── liste_blanche.conf
+│   │   │   └── sentinelle.conf
+│   │   ├── install.sh
+│   │   ├── lib
+│   │   │   ├── ban.sh
+│   │   │   ├── jail_runner.sh
+│   │   │   ├── lock.sh
+│   │   │   ├── log.sh
+│   │   │   ├── purge.sh
+│   │   │   └── whitelist.sh
+│   │   ├── README.md
+│   │   ├── sentinelle-ctl.sh
+│   │   ├── sentinelle.sh
+│   │   ├── systemd
+│   │   │   ├── sentinelle.logrotate
+│   │   │   └── sentinelle.service
+│   │   └── uninstall.sh
+│   ├── config
+│   │   ├── database.conf
+│   │   └── sentinelle.conf
+│   ├── creer_arborescence.sh
+│   ├── database
+│   │   └── sentinelle.sql
+│   ├── documentation
+│   │   └── installation.md
+│   ├── generer_monitoring.sh
+│   ├── install
+│   │   └── 01_dependances.sh
+│   ├── install.sh
+│   ├── README.md
+│   ├── scripts
+│   │   ├── collect_systeme.sh
+│   │   ├── enregistrer_metrics.sh
+│   │   ├── insertion_bdd.sh
+│   │   └── nettoyage_historique.sh
+│   ├── systemd
+│   │   ├── sentinelle-collector.service
+│   │   └── sentinelle-collector.timer
+│   └── web
+│       ├── api
+│       │   ├── events.php
+│       │   └── metrics.php
+│       ├── assets
+│       │   ├── css
+│       │   │   └── style.css
+│       │   └── js
+│       │       └── dashboard.js
+│       ├── config
+│       │   └── database.php
+│       ├── historique.php
+│       └── index.php
+├── page_de_connexion
+│   ├── page_version_1
+│   │   └── auth-ui
+│   │       ├── assets
+│   │       │   └── styles.css
+│   │       ├── login.html
+│   │       └── register.html
+│   ├── page_version_2
+│   │   ├── arborescence.md
+│   │   ├── auth-ui
+│   │   │   ├── assets
+│   │   │   │   └── styles.css
+│   │   │   ├── login.html
+│   │   │   └── register.html
+│   │   ├── backend
+│   │   │   ├── application.properties
+│   │   │   ├── pom.xml
+│   │   │   ├── src
+│   │   │   │   └── main
+│   │   │   │       └── java
+│   │   │   │           └── com
+│   │   │   │               └── example
+│   │   │   │                   └── auth
+│   │   │   │                       ├── AuthApplication.java
+│   │   │   │                       ├── config
+│   │   │   │                       │   ├── CorsConfig.java
+│   │   │   │                       │   ├── JwtAuthenticationFilter.java
+│   │   │   │                       │   └── SecurityConfig.java
+│   │   │   │                       ├── controller
+│   │   │   │                       │   └── AuthController.java
+│   │   │   │                       ├── dto
+│   │   │   │                       │   ├── AuthResponse.java
+│   │   │   │                       │   ├── LoginRequest.java
+│   │   │   │                       │   └── RegisterRequest.java
+│   │   │   │                       ├── model
+│   │   │   │                       │   └── User.java
+│   │   │   │                       ├── repository
+│   │   │   │                       │   └── UserRepository.java
+│   │   │   │                       └── service
+│   │   │   │                           ├── AuthService.java
+│   │   │   │                           └── JwtService.java
+│   │   │   └── target
+│   │   │       ├── classes
+│   │   │       │   └── com
+│   │   │       │       └── example
+│   │   │       │           └── auth
+│   │   │       │               └── controller
+│   │   │       │                   ├── AuthController$ErrorResponse.class
+│   │   │       │                   └── AuthController.class
+│   │   │       └── maven-status
+│   │   │           └── maven-compiler-plugin
+│   │   │               └── compile
+│   │   │                   └── default-compile
+│   │   │                       ├── createdFiles.lst
+│   │   │                       └── inputFiles.lst
+│   │   ├── docker-compose.yml
+│   │   ├── frontend
+│   │   │   ├── login.html
+│   │   │   └── register.html
+│   │   ├── page_connexion_inscription.zip
+│   │   └── page_de_connexion-V2.zip
+│   └── page_version_3
+│       ├── auth-project
+│       │   ├── backend
+│       │   │   ├── pom.xml
+│       │   │   └── src
+│       │   │       └── main
+│       │   │           ├── java
+│       │   │           │   └── com
+│       │   │           │       └── auth
+│       │   │           │           └── app
+│       │   │           │               ├── AuthAppApplication.java
+│       │   │           │               ├── config
+│       │   │           │               │   └── SecurityConfig.java
+│       │   │           │               ├── controller
+│       │   │           │               │   └── AuthController.java
+│       │   │           │               ├── model
+│       │   │           │               │   ├── Dto.java
+│       │   │           │               │   └── User.java
+│       │   │           │               ├── repository
+│       │   │           │               │   └── UserRepository.java
+│       │   │           │               ├── security
+│       │   │           │               │   ├── JwtFilter.java
+│       │   │           │               │   └── JwtUtil.java
+│       │   │           │               └── service
+│       │   │           │                   └── AuthService.java
+│       │   │           └── resources
+│       │   │               ├── application-jwt.properties
+│       │   │               └── application.properties
+│       │   ├── frontend
+│       │   │   ├── index.html
+│       │   │   ├── package.json
+│       │   │   ├── src
+│       │   │   │   ├── api
+│       │   │   │   │   └── auth.js
+│       │   │   │   ├── App.vue
+│       │   │   │   ├── assets
+│       │   │   │   │   └── global.css
+│       │   │   │   ├── main.js
+│       │   │   │   ├── router
+│       │   │   │   │   └── index.js
+│       │   │   │   └── views
+│       │   │   │       ├── DashboardView.vue
+│       │   │   │       ├── LoginView.vue
+│       │   │   │       ├── ProfileView.vue
+│       │   │   │       └── RegisterView.vue
+│       │   │   └── vite.config.js
+│       │   └── README.md
+│       ├── auth-project.tar.gz
+│       └── Lancer_le_projet_en_localhost.md
+├── Procedure_page_authentification_avec_MongoDB.md
+├── procedure_stack_auth_kubuntu2604.md
+└── README.md
+
+81 directories, 117 files
