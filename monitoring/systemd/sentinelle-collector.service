@@ -1,0 +1,9 @@
+[Unit]
+Description=Collecteur de métriques Sentinelle
+After=mysql.service
+
+
+[Service]
+Type=oneshot
+
+ExecStart=/opt/sentinelle/scripts/enregistrer_metrics.sh
