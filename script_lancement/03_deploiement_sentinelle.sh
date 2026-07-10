@@ -127,6 +127,10 @@ cp \
 "${INSTALL_DIR}/config/"
 
 
+cp \
+"${SOURCE_SENTINELLE}/config/jails.d/"*.conf \
+"${INSTALL_DIR}/config/jails.d/" 2>/dev/null || true
+
 
 cp \
 "${SOURCE_CONFIG}/sentinelle.conf" \
