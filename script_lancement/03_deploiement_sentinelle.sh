@@ -78,8 +78,10 @@ echo "[1/6] Création arborescence Sentinelle"
 
 mkdir -p \
 "${INSTALL_DIR}/config" \
+"${INSTALL_DIR}/config/jails.d" \
 "${INSTALL_DIR}/lib" \
 "${INSTALL_DIR}/scripts" \
+"${INSTALL_DIR}/data" \
 "${INSTALL_DIR}/logs"
 
 
