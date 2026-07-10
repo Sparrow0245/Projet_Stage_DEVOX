@@ -5,7 +5,7 @@ BASE_DIR="$(cd "$(dirname "$0")" && pwd)"
 source "$BASE_DIR/../config/database.conf"
 
 
-DATA=$("$BASE_DIR/collecte_systeme.sh")
+DATA=$("$BASE_DIR/collect_systeme.sh")
 
 
 CPU=$(echo "$DATA" | cut -d";" -f1)
@@ -28,10 +28,10 @@ load_average
 )
 VALUES
 (
-$CPU,
-$RAM,
-$DISK,
-$LOAD
+${CPU},
+${RAM},
+${DISK},
+${LOAD}
 );
 
 EOF
