@@ -3,6 +3,7 @@
 <html lang="fr">
 
 <head>
+  <meta http-equiv="refresh" content="60">
 
 <meta charset="UTF-8">
 
