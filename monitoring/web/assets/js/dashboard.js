@@ -51,6 +51,28 @@ data:cpu
 
 }]
 
+},
+
+options:{
+
+scales:{
+
+y:{
+
+min:0,
+
+max:100,
+
+ticks:{
+
+stepSize:10
+
+}
+
+}
+
+}
+
 }
 
 });
@@ -75,6 +97,28 @@ data:ram
 
 }]
 
+},
+
+options:{
+
+scales:{
+
+y:{
+
+min:0,
+
+max:100,
+
+ticks:{
+
+stepSize:10
+
+}
+
+}
+
+}
+
 }
 
 });
@@ -98,6 +142,28 @@ label:"Disque %",
 data:disk
 
 }]
+
+},
+
+options:{
+
+scales:{
+
+y:{
+
+min:0,
+
+max:100,
+
+ticks:{
+
+stepSize:10
+
+}
+
+}
+
+}
 
 }
 
