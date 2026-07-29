@@ -15,7 +15,6 @@ BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 APP_DIR="${BASE_DIR}/monitoring/04_sentinelle_supervision_securisee"
 
 WEB_ROOT="/var/www/html/sentinelle"
-VHOST_CONF="${APP_DIR}/config/apache/sentinelle.conf"
 TARGET_VHOST="/etc/apache2/sites-available/sentinelle.conf"
 
 if [[ $EUID -ne 0 ]]; then
@@ -28,16 +27,42 @@ echo "[1/4] Activation des modules Apache (Proxy, SSL, Rewrite)"
 a2enmod rewrite ssl headers proxy proxy_http >/dev/null
 
 echo
-echo "[2/4] Copie de la configuration VirtualHost"
-cp "${VHOST_CONF}" "${TARGET_VHOST}"
+echo "[2/4] Création du dossier Web Root"
+mkdir -p "${WEB_ROOT}"
 
 echo
-echo "[3/4] Activation du site Sentinelle"
+echo "[3/4] Génération de la configuration VirtualHost & Reverse Proxy"
+cat << 'EOF' > "${TARGET_VHOST}"
+<VirtualHost *:80>
+    ServerName localhost
+
+    # Emplacement du Frontend Vue.js
+    DocumentRoot /var/www/html/sentinelle
+
+    # Directives du Reverse Proxy pour l'API Backend Spring Boot (Port 8080)
+    ProxyPreserveHost On
+    ProxyRequests Off
+
+    ProxyPass /api http://127.0.0.1:8080/api
+    ProxyPassReverse /api http://127.0.0.1:8080/api
+
+    <Directory /var/www/html/sentinelle>
+        Options -Indexes +FollowSymLinks
+        AllowOverride All
+        Require all granted
+    </Directory>
+
+    # Logs
+    ErrorLog ${APACHE_LOG_DIR}/sentinelle_error.log
+    CustomLog ${APACHE_LOG_DIR}/sentinelle_access.log combined
+</VirtualHost>
+EOF
+
+echo
+echo "[4/4] Activation du site Sentinelle et redémarrage d'Apache"
 a2dissite 000-default.conf >/dev/null || true
 a2ensite sentinelle.conf >/dev/null
 
-echo
-echo "[4/4] Validation et redémarrage d'Apache"
 apache2ctl configtest
 systemctl restart apache2
 
