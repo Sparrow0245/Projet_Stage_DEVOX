@@ -35,6 +35,23 @@ CREATE TABLE IF NOT EXISTS metrics
 
 
 -- =====================================================
+-- Table des métriques CPU (Requise par la V4 du backend)
+-- =====================================================
+
+CREATE TABLE IF NOT EXISTS metrics_cpu
+(
+    id INT AUTO_INCREMENT PRIMARY KEY,
+
+    cpu_usage FLOAT NOT NULL,
+
+    load_average1m FLOAT NOT NULL,
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+
+
+-- =====================================================
 -- Table des événements détectés
 -- Alertes générées par Sentinelle
 -- =====================================================
@@ -142,6 +159,19 @@ VALUES
 (
     0,
     0,
+    0,
+    0
+);
+
+
+
+INSERT INTO metrics_cpu
+(
+    cpu_usage,
+    load_average1m
+)
+VALUES
+(
     0,
     0
 );
