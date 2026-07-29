@@ -11,11 +11,11 @@
         <relativePath/>
     </parent>
 
-    <groupId>com.devox.sentinelle</groupId>
+    <groupId>com.sentinelle</groupId>
     <artifactId>sentinelle-backend</artifactId>
     <version>4.0.0</version>
     <name>sentinelle-backend</name>
-    <description>API REST de supervision et sécurité Sentinelle V4</description>
+    <description>API REST générique de supervision et sécurité Sentinelle</description>
 
     <properties>
         <java.version>21</java.version>
