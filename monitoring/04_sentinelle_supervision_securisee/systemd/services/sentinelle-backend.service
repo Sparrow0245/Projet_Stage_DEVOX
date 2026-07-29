@@ -1,13 +1,22 @@
 [Unit]
-Description=Sentinelle V4 Backend Spring Boot Service
-After=syslog.target network.target mysql.service
+Description=Sentinelle V4 - Backend API Spring Boot
+After=network.target mariadb.service
+Wants=mariadb.service
 
 [Service]
+Type=simple
 User=root
-ExecStart=/usr/bin/java -jar /opt/sentinelle/backend/sentinelle-backend-4.0.0.jar
-SuccessExitStatus=143
+Group=root
+WorkingDirectory=/opt/sentinelle/backend
+ExecStart=/usr/bin/java -jar /opt/sentinelle/backend/sentinelle-backend-4.0.0.jar --spring.config.location=/opt/sentinelle/config/application.properties
 Restart=always
-RestartSec=5
+RestartSec=10
+SuccessExitStatus=143
+
+# Durcissement de sécurité Systemd
+ProtectSystem=full
+ProtectHome=true
+PrivateTmp=true
 
 [Install]
 WantedBy=multi-user.target
