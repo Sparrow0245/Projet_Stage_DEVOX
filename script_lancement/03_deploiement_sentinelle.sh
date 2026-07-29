@@ -2,220 +2,59 @@
 
 ###############################################################################
 # Projet Stage DEVOX
-# Déploiement du moteur Sentinelle
+# Compilation & Déploiement du Backend Spring Boot Java 21
 ###############################################################################
 
 set -euo pipefail
 
-
 echo "==============================================================="
-echo " Déploiement Sentinelle"
+echo " Déploiement Backend Spring Boot"
 echo "==============================================================="
-
-
-###############################################################################
-# Variables
-###############################################################################
 
 BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+APP_DIR="${BASE_DIR}/monitoring/04_sentinelle_supervision_securisee"
 
-
-SOURCE_SENTINELLE="${BASE_DIR}/monitoring/03_sentinelle_unifiee_multijails_corrigee"
-
-SOURCE_CONFIG="${BASE_DIR}/monitoring/config"
-
-SOURCE_SCRIPTS="${BASE_DIR}/monitoring/scripts"
-
+SOURCE_BACKEND="${APP_DIR}/backend"
+SOURCE_CONFIG="${APP_DIR}/config"
+SOURCE_BASH="${APP_DIR}/bash"
 
 INSTALL_DIR="/opt/sentinelle"
-
-
-
-###############################################################################
-# Vérification root
-###############################################################################
 
 if [[ $EUID -ne 0 ]]; then
     echo "[ERREUR] Ce script doit être exécuté avec sudo."
     exit 1
 fi
 
-
-
-###############################################################################
-# Vérification fichiers source
-###############################################################################
-
-echo "[INFO] Vérification des sources"
-
-
-
-for DIR in \
-    "${SOURCE_SENTINELLE}" \
-    "${SOURCE_CONFIG}" \
-    "${SOURCE_SCRIPTS}"
-do
-
-    if [[ ! -d "${DIR}" ]]; then
-
-        echo "[ERREUR] Dossier introuvable : ${DIR}"
-        exit 1
-
-    fi
-
-done
-
-
-
-###############################################################################
-# Création arborescence serveur
-###############################################################################
-
 echo
-echo "[1/6] Création arborescence Sentinelle"
-
-
-
+echo "[1/5] Création de l'arborescence /opt/sentinelle"
 mkdir -p \
-"${INSTALL_DIR}/config" \
-"${INSTALL_DIR}/config/jails.d" \
-"${INSTALL_DIR}/lib" \
-"${INSTALL_DIR}/scripts" \
-"${INSTALL_DIR}/data" \
-"${INSTALL_DIR}/logs"
-
-
-
-###############################################################################
-# Copie moteur Sentinelle
-###############################################################################
+    "${INSTALL_DIR}/backend" \
+    "${INSTALL_DIR}/config" \
+    "${INSTALL_DIR}/bash" \
+    "${INSTALL_DIR}/backups" \
+    /var/log/sentinelle \
+    /tmp/sentinelle
 
 echo
-echo "[2/6] Copie du moteur"
-
-
-
-cp \
-"${SOURCE_SENTINELLE}/sentinelle.sh" \
-"${INSTALL_DIR}/"
-
-
-
-cp \
-"${SOURCE_SENTINELLE}/sentinelle-ctl.sh" \
-"${INSTALL_DIR}/"
-
-
-
-cp \
-"${SOURCE_SENTINELLE}/lib/"*.sh \
-"${INSTALL_DIR}/lib/"
-
-
-
-###############################################################################
-# Copie configuration
-###############################################################################
+echo "[2/5] Compilation Maven du Backend"
+cd "${SOURCE_BACKEND}"
+mvn clean package -DskipTests
 
 echo
-echo "[3/6] Copie configuration"
-
-
-
-cp \
-"${SOURCE_SENTINELLE}/config/"*.conf \
-"${INSTALL_DIR}/config/"
-
-
-cp \
-"${SOURCE_SENTINELLE}/config/jails.d/"*.conf \
-"${INSTALL_DIR}/config/jails.d/" 2>/dev/null || true
-
-
-cp \
-"${SOURCE_CONFIG}/sentinelle.conf" \
-"${INSTALL_DIR}/config/"
-
-
-
-cp \
-"${SOURCE_CONFIG}/database.conf" \
-"${INSTALL_DIR}/config/"
-
-
-
-###############################################################################
-# Copie scripts monitoring
-###############################################################################
+echo "[3/5] Déploiement de l'exécutable JAR"
+cp target/sentinelle-backend-*.jar "${INSTALL_DIR}/backend/sentinelle-backend-4.0.0.jar"
 
 echo
-echo "[4/6] Copie scripts monitoring"
-
-
-
-cp \
-"${SOURCE_SCRIPTS}/"*.sh \
-"${INSTALL_DIR}/scripts/"
-
-
-
-###############################################################################
-# Permissions
-###############################################################################
+echo "[4/5] Copie des configurations et scripts Bash"
+cp -r "${SOURCE_CONFIG}/"* "${INSTALL_DIR}/config/"
+cp -r "${SOURCE_BASH}/"* "${INSTALL_DIR}/bash/"
 
 echo
-echo "[5/6] Application permissions"
-
-
-
-chmod +x \
-"${INSTALL_DIR}/sentinelle.sh"
-
-
-
-chmod +x \
-"${INSTALL_DIR}/sentinelle-ctl.sh"
-
-
-
-chmod +x \
-"${INSTALL_DIR}/lib/"*.sh
-
-
-
-chmod +x \
-"${INSTALL_DIR}/scripts/"*.sh
-
-
-
-chown -R root:root "${INSTALL_DIR}"
-
-
-
-###############################################################################
-# Test rapide
-###############################################################################
-
-echo
-echo "[6/6] Vérification installation"
-
-
-
-if [[ -f "${INSTALL_DIR}/sentinelle.sh" ]]
-then
-
-    echo "[OK] Moteur Sentinelle installé"
-
-else
-
-    echo "[ERREUR] Installation incomplète"
-    exit 1
-
-fi
-
-
+echo "[5/5] Application des droits d'exécution"
+chmod -R +x "${INSTALL_DIR}/bash/"
+chmod 755 /var/log/sentinelle
 
 echo
 echo "==============================================================="
-echo " Sentinelle déployée dans ${INSTALL_DIR}"
+echo " Backend Spring Boot & Scripts déployés dans ${INSTALL_DIR}"
 echo "==============================================================="
