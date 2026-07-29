@@ -1,10 +1,10 @@
 [Unit]
-Description=Timer pour la collecte des métriques Sentinelle V4 (5s)
+Description=Sentinelle V4 - Timer de collecte périodique (toutes les 10 secondes)
 
 [Timer]
-OnBootSec=10sec
-OnUnitActiveSec=5sec
-Unit=sentinelle-monitor.service
+OnBootSec=30s
+OnUnitActiveSec=10s
+AccuracySec=1s
 
 [Install]
 WantedBy=timers.target
