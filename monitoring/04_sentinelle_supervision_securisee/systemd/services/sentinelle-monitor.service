@@ -1,10 +1,11 @@
 [Unit]
-Description=Sentinelle V4 Monitoring Collector Service
-After=mysql.service
+Description=Sentinelle V4 - Service d'exécution des collecteurs de métriques
+After=network.target mariadb.service
 
 [Service]
 Type=oneshot
-ExecStart=/opt/sentinelle/bash/collect/collect_cpu.sh
-ExecStart=/opt/sentinelle/bash/collect/collect_ram.sh
-ExecStart=/opt/sentinelle/bash/collect/collect_disk.sh
-ExecStart=/opt/sentinelle/bash/collect/collect_network.sh
+User=root
+ExecStart=/bin/bash -c 'for script in /opt/sentinelle/bash/collect/*.sh; do [ -x "$script" ] && "$script"; done'
+
+[Install]
+WantedBy=multi-user.target
