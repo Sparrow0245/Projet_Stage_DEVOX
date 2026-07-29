@@ -1,0 +1,13 @@
+[Unit]
+Description=Sentinelle V4 Backend Spring Boot Service
+After=syslog.target network.target mysql.service
+
+[Service]
+User=root
+ExecStart=/usr/bin/java -jar /opt/sentinelle/backend/sentinelle-backend-4.0.0.jar
+SuccessExitStatus=143
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
