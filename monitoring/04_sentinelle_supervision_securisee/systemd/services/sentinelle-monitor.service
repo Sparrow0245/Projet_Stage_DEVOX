@@ -1,0 +1,10 @@
+[Unit]
+Description=Sentinelle V4 Monitoring Collector Service
+After=mysql.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/sentinelle/bash/collect/collect_cpu.sh
+ExecStart=/opt/sentinelle/bash/collect/collect_ram.sh
+ExecStart=/opt/sentinelle/bash/collect/collect_disk.sh
+ExecStart=/opt/sentinelle/bash/collect/collect_network.sh
