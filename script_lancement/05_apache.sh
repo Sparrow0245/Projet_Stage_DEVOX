@@ -30,7 +30,6 @@ echo
 echo "[2/5] Préparation du dossier Web Root et index.html"
 mkdir -p "${WEB_ROOT}"
 
-# Création d'un index.html par défaut s'il n'existe pas encore
 if [[ ! -f "${WEB_ROOT}/index.html" ]]; then
     cat << 'EOF' > "${WEB_ROOT}/index.html"
 <!DOCTYPE html>
@@ -51,6 +50,8 @@ cat << 'EOF' > "${TARGET_VHOST}"
     ProxyPreserveHost On
     ProxyRequests Off
 
+    ProxyPass /api/ http://127.0.0.1:8080/api/
+    ProxyPassReverse /api/ http://127.0.0.1:8080/api/
     ProxyPass /api http://127.0.0.1:8080/api
     ProxyPassReverse /api http://127.0.0.1:8080/api
 
@@ -65,7 +66,6 @@ cat << 'EOF' > "${TARGET_VHOST}"
     ServerName localhost
     DocumentRoot /var/www/html/sentinelle
 
-    # Activation SSL avec le certificat auto-signé par défaut d'Ubuntu
     SSLEngine on
     SSLCertificateFile /etc/ssl/certs/ssl-cert-snakeoil.pem
     SSLCertificateKeyFile /etc/ssl/private/ssl-cert-snakeoil.key
@@ -73,6 +73,8 @@ cat << 'EOF' > "${TARGET_VHOST}"
     ProxyPreserveHost On
     ProxyRequests Off
 
+    ProxyPass /api/ http://127.0.0.1:8080/api/
+    ProxyPassReverse /api/ http://127.0.0.1:8080/api/
     ProxyPass /api http://127.0.0.1:8080/api
     ProxyPassReverse /api http://127.0.0.1:8080/api
 
