@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS metrics_cpu (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     usage_percent DOUBLE NOT NULL,
-    load_average_1m DOUBLE NOT NULL,
+    load_average1m DOUBLE NOT NULL,
     recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_cpu_recorded_at (recorded_at)
 ) ENGINE=InnoDB;
