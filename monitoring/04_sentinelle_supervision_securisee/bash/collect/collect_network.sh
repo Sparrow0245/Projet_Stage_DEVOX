@@ -1,13 +1,21 @@
-#!/usr/bin/env bash
-DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$DIR/../utils/logger.sh"
-source "$DIR/../utils/mysql.sh"
+#!/bin/bash
+###############################################################################
+# Sentinelle V4 - Collecte Trafic Réseau (RX / TX)
+# Emplacement : monitoring/04_sentinelle_supervision_securisee/bash/collect/collect_network.sh
+###############################################################################
+set -euo pipefail
 
-cat /proc/net/dev | tail -n +3 | while read -r line; do
-    IFACE=$(echo "$line" | awk -F':' '{print $1}' | tr -d ' ')
-    if [ "$IFACE" != "lo" ]; then
-        RX=$(echo "$line" | awk -F':' '{print $2}' | awk '{print $1}')
-        TX=$(echo "$line" | awk -F':' '{print $2}' | awk '{print $9}')
-        execute_sql "INSERT INTO sentinelle.metrics_network (interface_name, rx_bytes, tx_bytes) VALUES ('$IFACE', $RX, $TX);"
-    fi
-done
+DB_CNF="/etc/mysql/sentinelle.cnf"
+
+NET_DEV=$(ip route | grep default | awk '{print $5}' | head -n 1)
+IFACE=${NET_DEV:-lo}
+
+NET_RX=$(cat /sys/class/net/"${IFACE}"/statistics/rx_bytes 2>/dev/null || echo 0)
+NET_TX=$(cat /sys/class/net/"${IFACE}"/statistics/tx_bytes 2>/dev/null || echo 0)
+
+NET_RX_KB=$((NET_RX / 1024))
+NET_TX_KB=$((NET_TX / 1024))
+
+mysql --defaults-extra-file="${DB_CNF}" sentinelle -e \
+"INSERT INTO metrics (host_id, cpu_usage, ram_usage, disk_usage, swap_usage, network_rx_kb, network_tx_kb) \
+VALUES (1, 0, 0, 0, 0, ${NET_RX_KB}, ${NET_TX_KB});"
