@@ -2,20 +2,14 @@
 
 ###############################################################################
 # Projet Stage DEVOX
-# Configuration Apache VirtualHost & Reverse Proxy HTTPS Sentinelle V4
+# Configuration Apache & Reverse Proxy pour Sentinelle V4
 ###############################################################################
 
 set -euo pipefail
 
 echo "==============================================================="
-echo " Configuration Apache & Reverse Proxy API (HTTP/HTTPS)"
+echo " Configuration Apache HTTP/HTTPS & Reverse Proxy"
 echo "==============================================================="
-
-BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-APP_DIR="${BASE_DIR}/monitoring/04_sentinelle_supervision_securisee"
-
-WEB_ROOT="/var/www/html/sentinelle"
-TARGET_VHOST="/etc/apache2/sites-available/sentinelle.conf"
 
 if [[ $EUID -ne 0 ]]; then
     echo "[ERREUR] Ce script doit être exécuté avec sudo."
@@ -23,62 +17,33 @@ if [[ $EUID -ne 0 ]]; then
 fi
 
 echo
-echo "[1/5] Activation des modules Apache (Proxy, SSL, Rewrite)"
-a2enmod rewrite ssl headers proxy proxy_http >/dev/null
+echo "[1/4] Activation des modules Apache nécessaires"
+a2enmod proxy proxy_http rewrite ssl headers >/dev/null 2>&1 || true
 
 echo
-echo "[2/5] Préparation du dossier Web Root et index.html"
-mkdir -p "${WEB_ROOT}"
-
-if [[ ! -f "${WEB_ROOT}/index.html" ]]; then
-    cat << 'EOF' > "${WEB_ROOT}/index.html"
-<!DOCTYPE html>
-<html lang="fr">
-<head><title>Sentinelle V4</title></head>
-<body><h1>Sentinelle V4 - Dashboard</h1></body>
-</html>
-EOF
+echo "[2/4] Génération du certificat SSL auto-signé"
+mkdir -p /etc/ssl/sentinelle
+if [ ! -f /etc/ssl/sentinelle/sentinelle.crt ]; then
+    openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+        -keyout /etc/ssl/sentinelle/sentinelle.key \
+        -out /etc/ssl/sentinelle/sentinelle.crt \
+        -subj "/C=FR/ST=Nord/L=Lille/O=Devox/OU=IT/CN=localhost" >/dev/null 2>&1
 fi
 
 echo
-echo "[3/5] Génération du VirtualHost Apache (Ports 80 & 443 HTTPS)"
-cat << 'EOF' > "${TARGET_VHOST}"
+echo "[3/4] Création du VirtualHost /etc/apache2/sites-available/sentinelle.conf"
+cat << 'EOF' > /etc/apache2/sites-available/sentinelle.conf
 <VirtualHost *:80>
     ServerName localhost
-    DocumentRoot /var/www/html/sentinelle
+    DocumentRoot /var/www/sentinelle
 
+    # Configuration du Reverse Proxy vers Spring Boot (Port 8080)
     ProxyPreserveHost On
     ProxyRequests Off
-
-    ProxyPass /api/ http://127.0.0.1:8080/api/
-    ProxyPassReverse /api/ http://127.0.0.1:8080/api/
     ProxyPass /api http://127.0.0.1:8080/api
     ProxyPassReverse /api http://127.0.0.1:8080/api
 
-    <Directory /var/www/html/sentinelle>
-        Options -Indexes +FollowSymLinks
-        AllowOverride All
-        Require all granted
-    </Directory>
-</VirtualHost>
-
-<VirtualHost _default_:443>
-    ServerName localhost
-    DocumentRoot /var/www/html/sentinelle
-
-    SSLEngine on
-    SSLCertificateFile /etc/ssl/certs/ssl-cert-snakeoil.pem
-    SSLCertificateKeyFile /etc/ssl/private/ssl-cert-snakeoil.key
-
-    ProxyPreserveHost On
-    ProxyRequests Off
-
-    ProxyPass /api/ http://127.0.0.1:8080/api/
-    ProxyPassReverse /api/ http://127.0.0.1:8080/api/
-    ProxyPass /api http://127.0.0.1:8080/api
-    ProxyPassReverse /api http://127.0.0.1:8080/api
-
-    <Directory /var/www/html/sentinelle>
+    <Directory /var/www/sentinelle>
         Options -Indexes +FollowSymLinks
         AllowOverride All
         Require all granted
@@ -87,18 +52,39 @@ cat << 'EOF' > "${TARGET_VHOST}"
     ErrorLog ${APACHE_LOG_DIR}/sentinelle_error.log
     CustomLog ${APACHE_LOG_DIR}/sentinelle_access.log combined
 </VirtualHost>
+
+<VirtualHost *:443>
+    ServerName localhost
+    DocumentRoot /var/www/sentinelle
+
+    SSLEngine on
+    SSLCertificateFile /etc/ssl/sentinelle/sentinelle.crt
+    SSLCertificateKeyFile /etc/ssl/sentinelle/sentinelle.key
+
+    # Configuration du Reverse Proxy vers Spring Boot (Port 8080)
+    ProxyPreserveHost On
+    ProxyRequests Off
+    ProxyPass /api http://127.0.0.1:8080/api
+    ProxyPassReverse /api http://127.0.0.1:8080/api
+
+    <Directory /var/www/sentinelle>
+        Options -Indexes +FollowSymLinks
+        AllowOverride All
+        Require all granted
+    </Directory>
+
+    ErrorLog ${APACHE_LOG_DIR}/sentinelle_ssl_error.log
+    CustomLog ${APACHE_LOG_DIR}/sentinelle_ssl_access.log combined
+</VirtualHost>
 EOF
 
 echo
-echo "[4/5] Activation du site Sentinelle"
-a2dissite 000-default.conf default-ssl.conf >/dev/null || true
-a2ensite sentinelle.conf >/dev/null
-
-echo
-echo "[5/5] Validation et redémarrage d'Apache"
-apache2ctl configtest
+echo "[4/4] Activation de la configuration Apache"
+a2dissite 000-default.conf >/dev/null 2>&1 || true
+a2ensite sentinelle.conf >/dev/null 2>&1 || true
 systemctl restart apache2
 
+echo
 echo "==============================================================="
-echo " Apache HTTP/HTTPS configuré avec succès"
+echo " Apache & Reverse Proxy configurés avec succès"
 echo "==============================================================="
