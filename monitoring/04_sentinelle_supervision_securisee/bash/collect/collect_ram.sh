@@ -1,14 +1,21 @@
-#!/usr/bin/env bash
-DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$DIR/../utils/logger.sh"
-source "$DIR/../utils/mysql.sh"
+#!/bin/bash
+###############################################################################
+# Sentinelle V4 - Collecte RAM & SWAP
+# Emplacement : monitoring/04_sentinelle_supervision_securisee/bash/collect/collect_ram.sh
+###############################################################################
+set -euo pipefail
 
-TOTAL=$(free -m | awk '/Mem:/ {print $2}')
-USED=$(free -m | awk '/Mem:/ {print $3}')
-FREE=$(free -m | awk '/Mem:/ {print $4}')
-CACHED=$(free -m | awk '/Mem:/ {print $6}')
-SWAP_TOT=$(free -m | awk '/Swap:/ {print $2}')
-SWAP_USE=$(free -m | awk '/Swap:/ {print $3}')
+DB_CNF="/etc/mysql/sentinelle.cnf"
 
-execute_sql "INSERT INTO sentinelle.metrics_ram (total_mb, used_mb, free_mb, cached_mb, swap_total_mb, swap_used_mb) VALUES ($TOTAL, $USED, $FREE, $CACHED, $SWAP_TOT, $SWAP_USE);"
-log_msg "INFO" "RAM Used: ${USED}MB / ${TOTAL}MB"
+RAM_USAGE=$(free -m | awk '/Mem:/ { printf("%.2f", $3/$2 * 100) }')
+SWAP_USAGE=$(free -m | awk '/Swap:/ { if ($2>0) printf("%.2f", $3/$2 * 100); else print 0.0 }')
+
+mysql --defaults-extra-file="${DB_CNF}" sentinelle -e \
+"INSERT INTO metrics (host_id, cpu_usage, ram_usage, disk_usage, swap_usage, network_rx_kb, network_tx_kb) \
+VALUES (1, 0, ${RAM_USAGE}, 0, ${SWAP_USAGE}, 0, 0);"
+
+if (( $(echo "${RAM_USAGE} > 85.0" | bc -l) )); then
+    mysql --defaults-extra-file="${DB_CNF}" sentinelle -e \
+    "INSERT INTO events (host_id, event_type, severity, message) \
+    VALUES (1, 'RAM_HIGH', 'WARNING', 'Consommation RAM élevée : ${RAM_USAGE}%');"
+fi
