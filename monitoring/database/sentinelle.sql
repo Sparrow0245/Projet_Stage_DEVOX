@@ -4,174 +4,48 @@
 -- =====================================================
 
 
--- =====================================================
--- Sélection de la base
--- =====================================================
-
+CREATE DATABASE IF NOT EXISTS sentinelle CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE sentinelle;
 
-
-
--- =====================================================
--- Table des métriques système
--- Utilisée pour les graphiques du dashboard
--- =====================================================
-
-CREATE TABLE IF NOT EXISTS metrics
-(
-    id INT AUTO_INCREMENT PRIMARY KEY,
-
-    cpu_usage FLOAT NOT NULL,
-
-    ram_usage FLOAT NOT NULL,
-
-    disk_usage FLOAT NOT NULL,
-
-    load_average FLOAT NOT NULL,
-
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-
-
--- =====================================================
--- Table des métriques CPU (Requise par la V4 du backend)
--- =====================================================
-
-CREATE TABLE IF NOT EXISTS metrics_cpu
-(
-    id INT AUTO_INCREMENT PRIMARY KEY,
-
-    cpu_usage FLOAT NOT NULL,
-
-    load_average1m FLOAT NOT NULL,
-
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-
-
--- =====================================================
--- Table des événements détectés
--- Alertes générées par Sentinelle
--- =====================================================
-
-CREATE TABLE IF NOT EXISTS events
-(
-    id INT AUTO_INCREMENT PRIMARY KEY,
-
-    type VARCHAR(50) NOT NULL,
-
-    ip VARCHAR(45),
-
-    message TEXT,
-
-    severity ENUM(
-        'INFO',
-        'LOW',
-        'MEDIUM',
-        'HIGH',
-        'CRITICAL'
-    ) DEFAULT 'INFO',
-
-    action VARCHAR(100),
-
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-
-
--- =====================================================
--- Table des bannissements
--- Historique des IP bloquées
--- =====================================================
-
-CREATE TABLE IF NOT EXISTS bans
-(
-    id INT AUTO_INCREMENT PRIMARY KEY,
-
-    ip VARCHAR(45) NOT NULL,
-
-    reason TEXT,
-
-    duration VARCHAR(50),
-
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-
-
--- =====================================================
--- Table des utilisateurs du dashboard web
--- Connexion future à l'interface
--- =====================================================
-
-CREATE TABLE IF NOT EXISTS users
-(
-    id INT AUTO_INCREMENT PRIMARY KEY,
-
+-- Table des utilisateurs pour l'accès Web
+CREATE TABLE IF NOT EXISTS users (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
     username VARCHAR(50) NOT NULL UNIQUE,
-
     password VARCHAR(255) NOT NULL,
-
-    role ENUM(
-        'ADMIN',
-        'USER'
-    ) DEFAULT 'USER',
-
+    role VARCHAR(20) NOT NULL DEFAULT 'USER',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+) ENGINE=InnoDB;
 
+-- Suppression de la table pour garantir une structure propre
+DROP TABLE IF EXISTS metrics_cpu;
 
+-- Structure exacte attendue par Hibernate (load_average1m)
+CREATE TABLE metrics_cpu (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    usage_percent DOUBLE NOT NULL,
+    load_average1m DOUBLE NOT NULL,
+    recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_cpu_recorded_at (recorded_at)
+) ENGINE=InnoDB;
 
--- =====================================================
--- Données de test optionnelles
--- Permet de vérifier le dashboard
--- =====================================================
+-- Table des événements SSH
+CREATE TABLE IF NOT EXISTS ssh_events (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    ip_address VARCHAR(45) NOT NULL,
+    username VARCHAR(100),
+    status VARCHAR(20) NOT NULL,
+    event_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_ssh_ip (ip_address)
+) ENGINE=InnoDB;
 
-INSERT INTO events
-(
-    type,
-    ip,
-    message,
-    severity,
-    action
-)
-VALUES
-(
-    'SYSTEM',
-    NULL,
-    'Installation de Sentinelle terminée',
-    'INFO',
-    'INSTALL'
-);
+-- Table de surveillance des services système
+CREATE TABLE IF NOT EXISTS system_services (
+    service_name VARCHAR(100) PRIMARY KEY,
+    status VARCHAR(20) NOT NULL,
+    checked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
 
-
-
-INSERT INTO metrics
-(
-    cpu_usage,
-    ram_usage,
-    disk_usage,
-    load_average
-)
-VALUES
-(
-    0,
-    0,
-    0,
-    0
-);
-
-
-
-INSERT INTO metrics_cpu
-(
-    cpu_usage,
-    load_average1m
-)
-VALUES
-(
-    0,
-    0
-);
+-- Insertion de l'utilisateur administrateur par défaut
+INSERT INTO users (username, password, role) 
+VALUES ('admin', '$2a$10$e8R1/m6/4Hj.6dJkO4f1m.8x9U0Z2E4Y6X8W0V2U4T6R8P0N2M4L6', 'ADMIN')
+ON DUPLICATE KEY UPDATE id=id;
