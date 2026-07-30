@@ -8,7 +8,7 @@
 set -euo pipefail
 
 echo "==============================================================="
-echo " Installation des dépendances système (Java 21, Node.js, MySQL)"
+echo " Installation des dépendances système (Java 21, PHP, MariaDB)"
 echo "==============================================================="
 
 if [[ $EUID -ne 0 ]]; then
@@ -24,10 +24,6 @@ fi
 source /etc/os-release
 echo "[INFO] Système détecté : ${PRETTY_NAME}"
 
-if [[ "${ID}" != "ubuntu" ]]; then
-    echo "[AVERTISSEMENT] Ce script est prévu pour Ubuntu."
-fi
-
 echo
 echo "[1/6] Mise à jour des dépôts"
 apt update
@@ -41,11 +37,11 @@ echo "[3/6] Installation outils système & compilation"
 apt install -y \
     curl wget git unzip nano vim net-tools lsof \
     ca-certificates software-properties-common \
-    bc sysstat lm-sensors ufw apparmor qrencode jq
+    bc sysstat lm-sensors ufw apparmor qrencode jq openssl
 
 echo
-echo "[4/6] Installation Stack Java 21 & Node.js"
-apt install -y openjdk-21-jdk maven nodejs npm
+echo "[4/6] Installation Stack Java 21, Node.js & PHP"
+apt install -y openjdk-21-jdk maven nodejs npm php php-mysql libapache2-mod-php php-cli php-curl php-gd php-mbstring php-xml
 
 echo
 echo "[5/6] Installation Apache & MariaDB/MySQL"
