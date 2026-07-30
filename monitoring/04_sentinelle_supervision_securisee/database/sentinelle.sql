@@ -10,10 +10,10 @@ CREATE TABLE IF NOT EXISTS users (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 
--- Force la suppression de l'ancienne table avec le mauvais nom de colonne
+-- Force la suppression de la table si elle existe pour recréer la bonne structure
 DROP TABLE IF EXISTS metrics_cpu;
 
--- Recréation propre de la table des métriques CPU
+-- Table des métriques CPU avec le nom de colonne exact attendu par Hibernate (load_average1m)
 CREATE TABLE metrics_cpu (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     usage_percent DOUBLE NOT NULL,
@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS system_services (
     checked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 
--- Insertion de l'utilisateur administrateur par défaut (Mot de passe: admin123 hashé en BCrypt)
+-- Insertion de l'utilisateur administrateur par défaut
 INSERT INTO users (username, password, role) 
 VALUES ('admin', '$2a$10$e8R1/m6/4Hj.6dJkO4f1m.8x9U0Z2E4Y6X8W0V2U4T6R8P0N2M4L6', 'ADMIN')
 ON DUPLICATE KEY UPDATE id=id;
