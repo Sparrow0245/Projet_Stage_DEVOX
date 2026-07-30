@@ -32,9 +32,9 @@ if [[ $EUID -ne 0 ]]; then
     exit 1
 fi
 
-echo -n "[INFO] Attente du démarrage de Spring Boot (port 8080)..."
+echo -n "[INFO] Attente du démarrage de Spring Boot (port 8081)..."
 for i in {1..15}; do
-    if curl -s http://127.0.0.1:8080/api > /dev/null 2>&1 || curl -s http://127.0.0.1:8080/actuator/health > /dev/null 2>&1; then
+    if curl -s http://127.0.0.1:8081/api > /dev/null 2>&1 || curl -s http://127.0.0.1:8081/actuator/health > /dev/null 2>&1; then
         echo " Prêt !"
         break
     fi
@@ -55,8 +55,8 @@ check "Connexion MySQL automatique" "mysql --defaults-extra-file=/etc/mysql/sent
 
 echo
 echo "---- Endpoints & Frontend ----"
-check "Frontend Web accessible" "curl -k -s -o /dev/null -w '%{http_code}' https://localhost/index.php | grep -E '200|302'"
-check "API Backend via Reverse Proxy" "curl -k -s -o /dev/null -w '%{http_code}' https://localhost/api | grep -vE '502|503|404'"
+check "Frontend Web accessible" "curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/index.php | grep -E '200|302'"
+check "API Backend via Reverse Proxy" "curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/api | grep -vE '502|503|404'"
 
 echo
 echo "==============================================================="
