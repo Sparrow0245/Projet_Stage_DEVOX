@@ -1,16 +1,23 @@
-#!/usr/bin/env bash
-DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$DIR/../utils/logger.sh"
-source "$DIR/../utils/mysql.sh"
+#!/bin/bash
+###############################################################################
+# Sentinelle V4 - Collecte de l'utilisation CPU
+# Emplacement : monitoring/04_sentinelle_supervision_securisee/bash/collect/collect_cpu.sh
+###############################################################################
+set -euo pipefail
 
-USAGE=$(top -bn1 | grep "Cpu(s)" | sed "s/.*, *\([0-9.]*\)%* id.*/\1/" | awk '{print 100 - $1}')
-CORES=$(nproc)
-FREQ=$(lscpu | grep "CPU MHz" | awk '{print $3}')
-[ -z "$FREQ" ] && FREQ=0
-LOAD=$(uptime | awk -F'load average:' '{ print $2 }')
-L1=$(echo $LOAD | awk -F',' '{print $1}' | tr -d ' ')
-L5=$(echo $LOAD | awk -F',' '{print $2}' | tr -d ' ')
-L15=$(echo $LOAD | awk -F',' '{print $3}' | tr -d ' ')
+DB_CNF="/etc/mysql/sentinelle.cnf"
 
-execute_sql "INSERT INTO sentinelle.metrics_cpu (usage_percent, frequency_mhz, cores_count, load_1m, load_5m, load_15m) VALUES ($USAGE, $FREQ, $CORES, $L1, $L5, $L15);"
-log_msg "INFO" "CPU Usage: $USAGE%"
+# Calcul du % d'utilisation CPU
+CPU_USAGE=$(top -bn1 | grep "Cpu(s)" | sed "s/.*, *\([0-9.]*\)%* id.*/\1/" | awk '{print 100 - $1}')
+
+# Insertion de la métrique
+mysql --defaults-extra-file="${DB_CNF}" sentinelle -e \
+"INSERT INTO metrics (host_id, cpu_usage, ram_usage, disk_usage, swap_usage, network_rx_kb, network_tx_kb) \
+VALUES (1, ${CPU_USAGE}, 0, 0, 0, 0, 0);"
+
+# Contrôle du seuil d'alerte (Ex: > 80%)
+if (( $(echo "${CPU_USAGE} > 80.0" | bc -l) )); then
+    mysql --defaults-extra-file="${DB_CNF}" sentinelle -e \
+    "INSERT INTO events (host_id, event_type, severity, message) \
+    VALUES (1, 'CPU_HIGH', 'WARNING', 'Consommation CPU élevée : ${CPU_USAGE}%');"
+fi
