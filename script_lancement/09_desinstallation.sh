@@ -2,64 +2,47 @@
 
 ###############################################################################
 # Projet Stage DEVOX
-# Désinstallation complète de Sentinelle V4
+# Script 09 - Désinstallation et nettoyage complet du projet
 ###############################################################################
 
 set -euo pipefail
 
 echo "==============================================================="
-echo " Désinstallation Sentinelle V4"
+echo " [09/09] Suppression et réinitialisation de Sentinelle V4"
 echo "==============================================================="
-
-SENTINELLE_DIR="/opt/sentinelle"
-WEB_ROOT="/var/www/html/sentinelle"
-SYSTEMD_DIR="/etc/systemd/system"
-VHOST_PATH="/etc/apache2/sites-available/sentinelle.conf"
-DB_NAME="sentinelle"
-DB_USER="sentinelle"
 
 if [[ $EUID -ne 0 ]]; then
     echo "[ERREUR] Ce script doit être exécuté avec sudo."
     exit 1
 fi
 
-read -r -p "Confirmer la désinstallation de Sentinelle V4 ? (taper OUI) : " CONFIRM
-if [[ "${CONFIRM}" != "OUI" ]]; then
-    echo "[INFO] Désinstallation annulée."
+read -p "Êtes-vous sûr de vouloir tout désinstaller (BDD, fichiers Web, services) ? (o/N) " -n 1 -r
+echo
+if [[ ! $REPLY =~ ^[Oo]$ ]]; then
+    echo "Désinstallation annulée."
     exit 0
 fi
 
-echo
-echo "[1/5] Arrêt et suppression des services systemd"
-systemctl stop sentinelle-backend.service sentinelle-monitor.timer || true
-systemctl disable sentinelle-backend.service sentinelle-monitor.timer || true
-
-rm -f "${SYSTEMD_DIR}/sentinelle-backend.service" \
-      "${SYSTEMD_DIR}/sentinelle-monitor.service" \
-      "${SYSTEMD_DIR}/sentinelle-monitor.timer"
+# 1. Arrêt et suppression des services Systemd
+echo "[1/4] Arrêt des services Systemd..."
+systemctl stop sentinelle-backend.service sentinelle-monitor.service 2>/dev/null || true
+systemctl disable sentinelle-backend.service sentinelle-monitor.service 2>/dev/null || true
+rm -f /etc/systemd/system/sentinelle-backend.service /etc/systemd/system/sentinelle-monitor.service
 systemctl daemon-reload
 
-echo
-echo "[2/5] Suppression VirtualHost Apache"
-a2dissite sentinelle.conf >/dev/null 2>&1 || true
-rm -f "${VHOST_PATH}"
-a2ensite 000-default.conf >/dev/null 2>&1 || true
-systemctl restart apache2 || true
+# 2. Suppression des fichiers Web
+echo "[2/4] Nettoyage du répertoire Web /var/www/html/sentinelle..."
+rm -rf /var/www/html/sentinelle
 
-echo
-echo "[3/5] Nettoyage répertoires Web et /opt"
-rm -rf "${WEB_ROOT}" "${SENTINELLE_DIR}" /var/log/sentinelle /tmp/sentinelle
-
-echo
-echo "[4/5] Suppression Base de Données"
-mysql <<EOF
-DROP DATABASE IF EXISTS ${DB_NAME};
-DROP USER IF EXISTS '${DB_USER}'@'localhost';
-FLUSH PRIVILEGES;
-EOF
+# 3. Suppression du fichier CNF MySQL
+echo "[3/4] Suppression de /etc/mysql/sentinelle.cnf..."
 rm -f /etc/mysql/sentinelle.cnf
 
-echo
+# 4. Suppression de la base de données MariaDB
+echo "[4/4] Suppression de la BDD et de l'utilisateur MySQL..."
+mysql -e "DROP DATABASE IF EXISTS sentinelle;" 2>/dev/null || true
+mysql -e "DROP USER IF EXISTS 'sentinelle'@'localhost';" 2>/dev/null || true
+
 echo "==============================================================="
-echo " Désinstallation Sentinelle V4 terminée"
+echo " Désinstallation terminée avec succès !"
 echo "==============================================================="
