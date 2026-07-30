@@ -10,8 +10,11 @@ CREATE TABLE IF NOT EXISTS users (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 
--- Table des métriques CPU
-CREATE TABLE IF NOT EXISTS metrics_cpu (
+-- Force la suppression de l'ancienne table avec le mauvais nom de colonne
+DROP TABLE IF EXISTS metrics_cpu;
+
+-- Recréation propre de la table des métriques CPU
+CREATE TABLE metrics_cpu (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     usage_percent DOUBLE NOT NULL,
     load_average1m DOUBLE NOT NULL,
