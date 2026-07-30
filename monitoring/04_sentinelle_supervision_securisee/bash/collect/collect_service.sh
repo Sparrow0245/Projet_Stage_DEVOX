@@ -1,25 +1,25 @@
 #!/bin/bash
-
 ###############################################################################
-# Sentinelle V4 - Vérification de l'état des services critiques systemd
+# Sentinelle V4 - Contrôle des Services Systemd
+# Emplacement : monitoring/04_sentinelle_supervision_securisee/bash/collect/collect_service.sh
 ###############################################################################
-
 set -euo pipefail
 
-MYSQL_CONF="/etc/mysql/sentinelle.cnf"
-DB_NAME="sentinelle"
+DB_CNF="/etc/mysql/sentinelle.cnf"
+SERVICES=("apache2" "mariadb" "sentinelle-backend" "ssh")
 
-SERVICES=("apache2" "mariadb" "ufw" "apparmor" "sshd")
-
-for SERVICE in "${SERVICES[@]}"; do
-    if systemctl is-active --quiet "${SERVICE}"; then
+for SVC in "${SERVICES[@]}"; do
+    if systemctl is-active --quiet "${SVC}"; then
         STATUS="ACTIVE"
     else
-        STATUS="INACTIVE"
+        STATUS="FAILED"
+        mysql --defaults-extra-file="${DB_CNF}" sentinelle -e \
+        "INSERT INTO events (host_id, event_type, severity, message) \
+        VALUES (1, 'SERVICE_DOWN', 'CRITICAL', 'Le service système ${SVC} est inactif ou en échec !');"
     fi
-    
-    mysql --defaults-extra-file="${MYSQL_CONF}" "${DB_NAME}" -e \
-    "INSERT INTO system_services (service_name, status, checked_at) 
-     VALUES ('${SERVICE}', '${STATUS}', NOW()) 
-     ON DUPLICATE KEY UPDATE status='${STATUS}', checked_at=NOW();" 2>/dev/null || true
+
+    mysql --defaults-extra-file="${DB_CNF}" sentinelle -e \
+    "INSERT INTO services_status (host_id, service_name, status) \
+    VALUES (1, '${SVC}', '${STATUS}') \
+    ON DUPLICATE KEY UPDATE status='${STATUS}', last_check=NOW();"
 done
