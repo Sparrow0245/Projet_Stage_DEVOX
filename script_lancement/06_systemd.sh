@@ -2,7 +2,7 @@
 
 ###############################################################################
 # Projet Stage DEVOX
-# Installation des services et timers systemd V4
+# Installation des services et timers systemd V4 (Spring Boot sur port 8081)
 ###############################################################################
 
 set -euo pipefail
@@ -27,6 +27,9 @@ echo "[1/4] Copie des fichiers Services & Timers"
 cp "${SOURCE_SYSTEMD}/services/"*.service "${SYSTEMD_DIR}/"
 cp "${SOURCE_SYSTEMD}/timers/"*.timer "${SYSTEMD_DIR}/"
 
+# Forcer le port 8081 pour Spring Boot pour libérer le port 8080 pour Apache
+sed -i 's|sentinelle-backend-4.0.0.jar|sentinelle-backend-4.0.0.jar --server.port=8081|g' "${SYSTEMD_DIR}/sentinelle-backend.service"
+
 echo
 echo "[2/4] Rechargement de systemd"
 systemctl daemon-reload
@@ -43,5 +46,5 @@ systemctl restart sentinelle-monitor.timer
 
 echo
 echo "==============================================================="
-echo " Services Backend et Timers de collecte activés"
+echo " Services Backend (port 8081) et Timers activés"
 echo "==============================================================="
