@@ -35,15 +35,11 @@ echo "[3/4] Création du VirtualHost /etc/apache2/sites-available/sentinelle.con
 cat << 'EOF' > /etc/apache2/sites-available/sentinelle.conf
 <VirtualHost *:80>
     ServerName localhost
-    ServerAlias 127.0.0.1
     DocumentRoot /var/www/sentinelle
 
     ProxyPreserveHost On
     ProxyRequests Off
 
-    # Redirection propre du Reverse Proxy vers le Backend Spring Boot (Port 8080)
-    ProxyPass /api/ http://127.0.0.1:8080/api/
-    ProxyPassReverse /api/ http://127.0.0.1:8080/api/
     ProxyPass /api http://127.0.0.1:8080/api
     ProxyPassReverse /api http://127.0.0.1:8080/api
 
@@ -59,7 +55,6 @@ cat << 'EOF' > /etc/apache2/sites-available/sentinelle.conf
 
 <VirtualHost *:443>
     ServerName localhost
-    ServerAlias 127.0.0.1
     DocumentRoot /var/www/sentinelle
 
     SSLEngine on
@@ -69,9 +64,6 @@ cat << 'EOF' > /etc/apache2/sites-available/sentinelle.conf
     ProxyPreserveHost On
     ProxyRequests Off
 
-    # Redirection propre du Reverse Proxy vers le Backend Spring Boot (Port 8080)
-    ProxyPass /api/ http://127.0.0.1:8080/api/
-    ProxyPassReverse /api/ http://127.0.0.1:8080/api/
     ProxyPass /api http://127.0.0.1:8080/api
     ProxyPassReverse /api http://127.0.0.1:8080/api
 
