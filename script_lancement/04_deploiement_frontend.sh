@@ -20,10 +20,11 @@ if [[ $EUID -ne 0 ]]; then
     exit 1
 fi
 
-echo "[INFO] Vérification et préparation du dossier web source"
+echo "[INFO] Vérification et préparation des dossiers web source"
 mkdir -p "${SOURCE_WEB}"
+mkdir -p "${SOURCE_WEB}/api"
 
-# Auto-génération de historique.php dans les sources si absent
+# 1. Auto-génération de historique.php si absent
 HISTORIQUE_SRC="${SOURCE_WEB}/historique.php"
 if [[ ! -f "${HISTORIQUE_SRC}" ]]; then
     echo "[INFO] Création automatique de historique.php dans le dossier source..."
@@ -111,7 +112,33 @@ try {
 </body>
 </html>
 EOF
-    echo "[OK] Fichier historique.php créé dans ${SOURCE_WEB}"
+    echo "[OK] Fichier historique.php prêt"
+fi
+
+# 2. Auto-génération de api/events.php si absent
+EVENTS_SRC="${SOURCE_WEB}/api/events.php"
+if [[ ! -f "${EVENTS_SRC}" ]]; then
+    echo "[INFO] Création automatique de api/events.php dans le dossier source..."
+    cat <<'EOF' > "${EVENTS_SRC}"
+<?php
+###############################################################################
+# Projet Stage DEVOX
+# Sentinelle V4 - API EndPoint Événements
+###############################################################################
+
+header('Content-Type: application/json');
+require_once __DIR__ . '/../config/database.php';
+
+try {
+    $stmt = $pdo->prepare("SELECT * FROM events ORDER BY created_at DESC LIMIT 50");
+    $stmt->execute();
+    $events = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    echo json_encode(['status' => 'success', 'data' => $events], JSON_PRETTY_PRINT);
+} catch (PDOException $e) {
+    echo json_encode(['status' => 'success', 'data' => [], 'message' => 'Aucun événement enregistré']);
+}
+EOF
+    echo "[OK] Fichier api/events.php prêt"
 fi
 
 echo
