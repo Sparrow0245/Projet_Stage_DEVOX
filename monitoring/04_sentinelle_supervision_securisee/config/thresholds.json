@@ -1,0 +1,20 @@
+{
+  "project": "Sentinelle V4",
+  "version": "4.0.0",
+  "thresholds": {
+    "cpu_warning_percent": 80.0,
+    "cpu_critical_percent": 95.0,
+    "ram_warning_percent": 85.0,
+    "ram_critical_percent": 95.0,
+    "disk_warning_percent": 85.0,
+    "disk_critical_percent": 90.0,
+    "swap_warning_percent": 50.0
+  },
+  "services_monitored": [
+    "apache2",
+    "mariadb",
+    "sentinelle-backend",
+    "ssh"
+  ],
+  "collection_interval_seconds": 10
+}
