@@ -12,7 +12,7 @@ echo " Déploiement interface Web Sentinelle"
 echo "==============================================================="
 
 BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-SOURCE_WEB="${BASE_DIR}/monitoring/web"
+SOURCE_WEB="${BASE_DIR}/monitoring/04_sentinelle_supervision_securisee/web"
 WEB_ROOT="/var/www/html/sentinelle"
 
 if [[ $EUID -ne 0 ]]; then
