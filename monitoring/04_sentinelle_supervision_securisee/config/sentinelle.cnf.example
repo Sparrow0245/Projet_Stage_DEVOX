@@ -1,3 +1,9 @@
+# ===============================================================
+# Modèle de configuration MySQL/MariaDB pour les scripts Collector
+# Emplacement GitHub : monitoring/04_sentinelle_supervision_securisee/config/sentinelle.cnf.example
+# Destination VM    : /etc/mysql/sentinelle.cnf (droits 600 root:root)
+# ===============================================================
+
 [client]
 user = sentinelle
 password = SentinelleSecurePass2026!
