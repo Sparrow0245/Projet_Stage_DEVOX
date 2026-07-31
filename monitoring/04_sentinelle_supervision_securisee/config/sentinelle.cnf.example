@@ -2,3 +2,5 @@
 user = sentinelle
 password = SentinelleSecurePass2026!
 host = localhost
+database = sentinelle
+default-character-set = utf8mb4
