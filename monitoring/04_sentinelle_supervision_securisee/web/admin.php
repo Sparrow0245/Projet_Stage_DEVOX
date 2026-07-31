@@ -1,108 +1,90 @@
 <?php
 /**
- * Sentinelle V4 - Console Administrateur Protégée par JWT
+ * Sentinelle V4 - Panneau d'Administration Securisé
  * Emplacement : monitoring/04_sentinelle_supervision_securisee/web/admin.php
  */
 
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/jwt_helper.php';
 
-$jwtToken = $_COOKIE['sentinelle_jwt'] ?? '';
-
-// Support de l'en-tête HTTP Authorization Bearer
-if (empty($jwtToken) && isset($_SERVER['HTTP_AUTHORIZATION'])) {
-    if (preg_match('/Bearer\s(\S+)/', $_SERVER['HTTP_AUTHORIZATION'], $matches)) {
-        $jwtToken = $matches[1];
-    }
-}
-
-$user = verifyJWT($jwtToken);
-
-if (!$user || $user['role'] !== 'ADMIN') {
-    // Redirection si le token JWT est absent, invalide ou expiré
+// Verification stricte de l'authentification JWT via Cookie
+if (!isset($_COOKIE['sentinelle_jwt'])) {
     header('Location: login.php');
     exit;
 }
 
-// Récupération des services systemd
-$stmtServices = $pdo->query("SELECT service_name, status, last_check FROM services_status ORDER BY service_name ASC");
-$services = $stmtServices->fetchAll();
+$userData = verifyJWT($_COOKIE['sentinelle_jwt']);
+if (!$userData) {
+    // Si le token est invalide ou expiré, déconnexion et nettoyage
+    header('Location: logout.php');
+    exit;
+}
 
-// Récupération des alertes
-$stmtEvents = $pdo->query("SELECT event_type, severity, message, created_at FROM events ORDER BY id DESC LIMIT 50");
-$events = $stmtEvents->fetchAll();
+// Récupération des statistiques globales pour l'administrateur
+$totalMetricsCount = $pdo->query("SELECT COUNT(*) FROM metrics")->fetchColumn();
+$totalEventsCount   = $pdo->query("SELECT COUNT(*) FROM events")->fetchColumn();
+$servicesCount     = $pdo->query("SELECT COUNT(*) FROM services_status")->fetchColumn();
 ?>
 <!DOCTYPE html>
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sentinelle V4 - Administration JWT</title>
-    <link rel="stylesheet" href="assets/css/style.css">
+    <title>Sentinelle V4 - Panneau d'Administration</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #0f172a; color: #f8fafc; font-family: system-ui, -apple-system, sans-serif; }
+        .card { background-color: #1e293b; border: 1px solid #334155; color: #fff; }
+    </style>
 </head>
-<body>
-    <header class="navbar">
-        <div class="brand">🛡️ Sentinelle V4 - Console Admin</div>
-        <nav>
-            <a href="index.php" class="btn-nav">Dashboard Public</a>
-            <a href="logout.php" class="btn-nav danger">Déconnexion (<?= htmlspecialchars($user['username']) ?>)</a>
-        </nav>
-    </header>
-
-    <main class="container">
-        <div class="alert alert-info" style="background: #1e293b; padding: 1rem; border-radius: 6px; border: 1px solid #38bdf8; margin-bottom: 1.5rem;">
-            <strong>Session Active JWT :</strong> Connecté en tant que <code><?= htmlspecialchars($user['username']) ?></code> (Rôle: <?= htmlspecialchars($user['role']) ?>)
+<body class="p-4">
+    <div class="container">
+        <div class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom border-secondary">
+            <div>
+                <h1 class="h3 text-warning m-0">⚙️ Espace Administration Sentinelle</h1>
+                <small class="text-muted">Connecté en tant que : <strong><?= htmlspecialchars($userData['username']) ?></strong> (Rôle: <?= htmlspecialchars($userData['role']) ?>)</small>
+            </div>
+            <div>
+                <a href="index.php" class="btn btn-outline-light me-2">Voir le Dashboard</a>
+                <a href="logout.php" class="btn btn-danger">Déconnexion</a>
+            </div>
         </div>
 
-        <h2>État des Services Systemd</h2>
-        <table class="data-table">
-            <thead>
-                <tr>
-                    <th>Service</th>
-                    <th>Statut</th>
-                    <th>Dernière vérification</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php foreach ($services as $svc): ?>
-                    <tr>
-                        <td><strong><?= htmlspecialchars($svc['service_name']) ?></strong></td>
-                        <td>
-                            <span class="badge badge-<?= $svc['status'] === 'ACTIVE' ? 'success' : 'danger' ?>">
-                                <?= htmlspecialchars($svc['status']) ?>
-                            </span>
-                        </td>
-                        <td><?= htmlspecialchars($svc['last_check']) ?></td>
-                    </tr>
-                <?php endforeach; ?>
-            </tbody>
-        </table>
+        <div class="row g-4 mb-4">
+            <div class="col-md-4">
+                <div class="card p-3 text-center">
+                    <h5 class="text-muted">Entrées Métriques BDD</h5>
+                    <h2 class="text-primary"><?= number_format($totalMetricsCount) ?></h2>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card p-3 text-center">
+                    <h5 class="text-muted">Services Supervisés</h5>
+                    <h2 class="text-success"><?= $servicesCount ?></h2>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card p-3 text-center">
+                    <h5 class="text-muted">Événements Enregistrés</h5>
+                    <h2 class="text-warning"><?= number_format($totalEventsCount) ?></h2>
+                </div>
+            </div>
+        </div>
 
-        <h2>Journal des Événements & Alertes Sécurité</h2>
-        <table class="data-table">
-            <thead>
-                <tr>
-                    <th>Horodatage</th>
-                    <th>Type</th>
-                    <th>Sévérité</th>
-                    <th>Message</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php foreach ($events as $event): ?>
-                    <tr>
-                        <td><?= htmlspecialchars($event['created_at']) ?></td>
-                        <td><code><?= htmlspecialchars($event['event_type']) ?></code></td>
-                        <td>
-                            <span class="badge badge-<?= strtolower($event['severity']) ?>">
-                                <?= htmlspecialchars($event['severity']) ?>
-                            </span>
-                        </td>
-                        <td><?= htmlspecialchars($event['message']) ?></td>
-                    </tr>
-                <?php endforeach; ?>
-            </tbody>
-        </table>
-    </main>
+        <div class="card p-4">
+            <h4 class="card-title text-info mb-3">Informations de Session JWT & 2FA</h4>
+            <ul class="list-group list-group-flush bg-transparent">
+                <li class="list-group-item bg-transparent text-white border-secondary">
+                    <strong>ID Utilisateur (Subject) :</strong> <?= htmlspecialchars($userData['sub'] ?? 'N/A') ?>
+                </li>
+                <li class="list-group-item bg-transparent text-white border-secondary">
+                    <strong>Horodatage d'émission (iat) :</strong> <?= date('Y-m-d H:i:s', $userData['iat'] ?? time()) ?>
+                </li>
+                <li class="list-group-item bg-transparent text-white border-secondary">
+                    <strong>Expiration du Jeton (exp) :</strong> <?= date('Y-m-d H:i:s', $userData['exp'] ?? time()) ?>
+                </li>
+            </ul>
+        </div>
+    </div>
 </body>
 </html>
