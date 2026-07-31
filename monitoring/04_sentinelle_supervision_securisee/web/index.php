@@ -1,171 +1,160 @@
 <?php
-/**
- * Sentinelle V4 - Dashboard Public
- * Emplacement : monitoring/04_sentinelle_supervision_securisee/web/index.php
- */
-require_once __DIR__ . '/jwt_helper.php';
-
-// Vérification si un administrateur est déjà connecté
-$isLoggedIn = false;
-if (isset($_COOKIE['sentinelle_jwt'])) {
-    $isLoggedIn = (verifyJWT($_COOKIE['sentinelle_jwt']) !== false);
-}
+session_start();
+$is_admin = isset($_SESSION['admin_logged']) && $_SESSION['admin_logged'] === true;
 ?>
 <!DOCTYPE html>
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sentinelle V4 - Dashboard Public</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <title>Sentinelle V4 - Supervision</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body { background-color: #0f172a; color: #f8fafc; font-family: system-ui, -apple-system, sans-serif; }
-        .card { background-color: #1e293b; border: 1px solid #334155; color: #fff; }
-        .badge-active { background-color: #10b981; }
-        .badge-inactive { background-color: #ef4444; }
-        .badge-failed { background-color: #ef4444; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0b0f19; color: #e2e8f0; margin: 0; padding: 20px; }
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #1e293b; padding-bottom: 15px; margin-bottom: 25px; }
+        .header h1 { margin: 0; color: #38bdf8; font-size: 1.8rem; }
+        .btn { background: #0284c7; color: white; padding: 8px 16px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block; }
+        .btn:hover { background: #0369a1; }
+        .btn-danger { background: #dc2626; }
+        .cards-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 25px; }
+        .card { background: #1e293b; border-radius: 8px; padding: 20px; text-align: center; }
+        .card h3 { margin: 0 0 10px 0; color: #94a3b8; font-size: 1rem; }
+        .card .value { font-size: 2rem; font-weight: bold; color: #38bdf8; }
+        .chart-container, .events-container { background: #1e293b; border-radius: 8px; padding: 20px; margin-bottom: 25px; }
+        h2 { color: #f8fafc; font-size: 1.2rem; margin-top: 0; margin-bottom: 15px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #334155; }
+        th { background: #0f172a; color: #38bdf8; }
+        tr:hover { background: #334155; }
+        .severity-CRITICAL { color: #ef4444; font-weight: bold; }
+        .severity-WARNING { color: #f59e0b; font-weight: bold; }
+        .severity-LOW { color: #38bdf8; }
     </style>
 </head>
-<body class="p-4">
-    <div class="container-fluid">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1 class="h3 text-primary m-0">🛡️ Sentinelle V4 - Supervision</h1>
-            <div>
-                <?php if ($isLoggedIn): ?>
-                    <a href="admin.php" class="btn btn-outline-success">Espace Administration</a>
-                    <a href="logout.php" class="btn btn-outline-danger ms-2">Déconnexion</a>
-                <?php else: ?>
-                    <a href="login.php" class="btn btn-outline-primary">Connexion Admin (JWT & 2FA)</a>
-                <?php endif; ?>
-            </div>
-        </div>
-
-        <!-- Jauges des métriques principales -->
-        <div class="row g-3 mb-4">
-            <div class="col-md-3">
-                <div class="card p-3 text-center">
-                    <h6>CPU</h6>
-                    <h3 id="cpu-val" class="text-info">-- %</h3>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card p-3 text-center">
-                    <h6>RAM</h6>
-                    <h3 id="ram-val" class="text-warning">-- %</h3>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card p-3 text-center">
-                    <h6>Disque</h6>
-                    <h3 id="disk-val" class="text-danger">-- %</h3>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card p-3 text-center">
-                    <h6>SWAP</h6>
-                    <h3 id="swap-val" class="text-secondary">-- %</h3>
-                </div>
-            </div>
-        </div>
-
-        <!-- Graphique + Statut Services -->
-        <div class="row g-3 mb-4">
-            <div class="col-md-8">
-                <div class="card p-3">
-                    <h5 class="card-title mb-3">Historique des Métriques</h5>
-                    <canvas id="metricsChart" height="120"></canvas>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="card p-3">
-                    <h5 class="card-title mb-3">Statut des Services</h5>
-                    <ul id="services-list" class="list-group list-group-flush"></ul>
-                </div>
-            </div>
-        </div>
-
-        <!-- Tableau des derniers événements -->
-        <div class="card p-3">
-            <h5 class="card-title mb-3">Dernières Alertes & Événements</h5>
-            <div class="table-responsive">
-                <table class="table table-dark table-striped mb-0">
-                    <thead>
-                        <tr>
-                            <th>Horodatage</th>
-                            <th>Type</th>
-                            <th>Sévérité</th>
-                            <th>Message</th>
-                        </tr>
-                    </thead>
-                    <tbody id="events-table"></tbody>
-                </table>
-            </div>
+<body>
+    <div class="header">
+        <h1>🛡️ Sentinelle V4 - Supervision</h1>
+        <div>
+            <?php if ($is_admin): ?>
+                <span style="color:#38bdf8; font-weight:bold; margin-right:10px;">Connecté (<?= htmlspecialchars($_SESSION['username'] ?? 'Admin') ?>)</span>
+                <a href="logout.php" class="btn btn-danger">Déconnexion</a>
+            <?php else: ?>
+                <a href="login.php" class="btn">Connexion Admin (JWT & 2FA)</a>
+            <?php endif; ?>
         </div>
     </div>
 
+    <div class="cards-grid">
+        <div class="card"><h3>CPU</h3><div class="value" id="val-cpu">-- %</div></div>
+        <div class="card"><h3>RAM</h3><div class="value" id="val-ram">-- %</div></div>
+        <div class="card"><h3>Disque</h3><div class="value" id="val-disk">-- %</div></div>
+        <div class="card"><h3>SWAP</h3><div class="value" id="val-swap">-- %</div></div>
+    </div>
+
+    <div class="chart-container">
+        <h2>Historique temps réel des métriques</h2>
+        <canvas id="metricsChart" height="80"></canvas>
+    </div>
+
+    <div class="events-container">
+        <h2>Dernières Alertes & Événements</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Horodatage</th>
+                    <th>Type</th>
+                    <th>Sévérité</th>
+                    <th>Message</th>
+                </tr>
+            </thead>
+            <tbody id="events-list">
+                <tr><td colspan="4" style="text-align:center;">Chargement des événements...</td></tr>
+            </tbody>
+        </table>
+    </div>
+
     <script>
-        const ctx = document.getElementById('metricsChart').getContext('2d');
-        const chart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: [],
-                datasets: [
-                    { label: 'CPU (%)', borderColor: '#0ea5e9', data: [], fill: false, tension: 0.2 },
-                    { label: 'RAM (%)', borderColor: '#f59e0b', data: [], fill: false, tension: 0.2 },
-                    { label: 'Disque (%)', borderColor: '#ef4444', data: [], fill: false, tension: 0.2 }
-                ]
-            },
-            options: { responsive: true, scales: { y: { min: 0, max: 100 } } }
-        });
-
-        async function refreshDashboard() {
-            try {
-                const res = await fetch('api/metrics.php');
-                const data = await res.json();
-
-                if (data.metrics && data.metrics.length > 0) {
-                    const last = data.metrics[data.metrics.length - 1];
-                    document.getElementById('cpu-val').innerText = last.cpu_usage + ' %';
-                    document.getElementById('ram-val').innerText = last.ram_usage + ' %';
-                    document.getElementById('disk-val').innerText = last.disk_usage + ' %';
-                    document.getElementById('swap-val').innerText = last.swap_usage + ' %';
-
-                    chart.data.labels = data.metrics.map(m => m.created_at.split(' ')[1]);
-                    chart.data.datasets[0].data = data.metrics.map(m => m.cpu_usage);
-                    chart.data.datasets[1].data = data.metrics.map(m => m.ram_usage);
-                    chart.data.datasets[2].data = data.metrics.map(m => m.disk_usage);
-                    chart.update();
+    document.addEventListener('DOMContentLoaded', () => {
+        let chartInstance = null;
+        const ctx = document.getElementById('metricsChart');
+        if (ctx) {
+            chartInstance = new Chart(ctx.getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [
+                        { label: 'CPU (%)', borderColor: '#38bdf8', data: [], fill: false, tension: 0.3 },
+                        { label: 'RAM (%)', borderColor: '#f59e0b', data: [], fill: false, tension: 0.3 },
+                        { label: 'Disque (%)', borderColor: '#ef4444', data: [], fill: false, tension: 0.3 }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: { beginAtZero: true, max: 100, grid: { color: '#334155' } },
+                        x: { grid: { color: '#334155' } }
+                    }
                 }
-
-                const sList = document.getElementById('services-list');
-                sList.innerHTML = '';
-                (data.services || []).forEach(s => {
-                    const statusClass = (s.status === 'active' || s.status === 'running') ? 'badge-active' : 'badge-failed';
-                    sList.innerHTML += `<li class="list-group-item bg-transparent text-white d-flex justify-content-between align-items-center">
-                        ${s.service_name}
-                        <span class="badge ${statusClass}">${(s.status || 'UNKNOWN').toUpperCase()}</span>
-                    </li>`;
-                });
-
-                const eTable = document.getElementById('events-table');
-                eTable.innerHTML = '';
-                (data.events || []).forEach(e => {
-                    const sevClass = e.severity === 'CRITICAL' ? 'bg-danger' : (e.severity === 'WARNING' ? 'bg-warning text-dark' : 'bg-info');
-                    eTable.innerHTML += `<tr>
-                        <td>${e.created_at || '-'}</td>
-                        <td>${e.event_type || 'SYSTEM'}</td>
-                        <td><span class="badge ${sevClass}">${e.severity || 'INFO'}</span></td>
-                        <td>${e.message}</td>
-                    </tr>`;
-                });
-            } catch (err) {
-                console.error("Erreur d'actualisation API :", err);
-            }
+            });
         }
 
-        refreshDashboard();
-        setInterval(refreshDashboard, 5000);
+        function getBasePath() {
+            const path = window.location.pathname;
+            return path.substring(0, path.lastIndexOf('/'));
+        }
+
+        function refreshMetrics() {
+            fetch(getBasePath() + '/api/metrics.php')
+                .then(res => res.json())
+                .then(res => {
+                    if (res.status === 'success' && res.data && res.data.length > 0) {
+                        const data = res.data;
+                        const latest = data[data.length - 1];
+
+                        if (document.getElementById('val-cpu')) document.getElementById('val-cpu').textContent = `${parseFloat(latest.cpu_usage || 0).toFixed(1)} %`;
+                        if (document.getElementById('val-ram')) document.getElementById('val-ram').textContent = `${parseFloat(latest.ram_usage || 0).toFixed(1)} %`;
+                        if (document.getElementById('val-disk')) document.getElementById('val-disk').textContent = `${parseFloat(latest.disk_usage || 0).toFixed(1)} %`;
+                        if (document.getElementById('val-swap')) document.getElementById('val-swap').textContent = `${parseFloat(latest.swap_usage || 0).toFixed(1)} %`;
+
+                        if (chartInstance) {
+                            chartInstance.data.labels = data.map(d => d.created_at ? d.created_at.split(' ')[1] : '');
+                            chartInstance.data.datasets[0].data = data.map(d => d.cpu_usage);
+                            chartInstance.data.datasets[1].data = data.map(d => d.ram_usage);
+                            chartInstance.data.datasets[2].data = data.map(d => d.disk_usage);
+                            chartInstance.update();
+                        }
+                    }
+                }).catch(err => console.error("Erreur métriques:", err));
+        }
+
+        function refreshEvents() {
+            fetch(getBasePath() + '/api/events.php')
+                .then(res => res.json())
+                .then(res => {
+                    if (res.status === 'success' && res.data) {
+                        const tbody = document.getElementById('events-list');
+                        if (!tbody) return;
+                        if (res.data.length === 0) {
+                            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Aucun événement.</td></tr>';
+                            return;
+                        }
+                        tbody.innerHTML = res.data.map(e => `
+                            <tr>
+                                <td>${e.created_at || ''}</td>
+                                <td><code>${e.type || ''}</code></td>
+                                <td class="severity-${e.severity || 'LOW'}">${e.severity || ''}</td>
+                                <td>${e.message || ''}</td>
+                            </tr>
+                        `).join('');
+                    }
+                }).catch(err => console.error("Erreur events:", err));
+        }
+
+        refreshMetrics();
+        refreshEvents();
+        setInterval(refreshMetrics, 5000);
+        setInterval(refreshEvents, 5000);
+    });
     </script>
 </body>
 </html>
