@@ -5,6 +5,10 @@
 # Fichier : monitoring/scripts/insertion_bdd.sh
 ###############################################################################
 
+###############################################################################
+# Chemin Git : monitoring/scripts/insertion_bdd.sh
+###############################################################################
+
 DB_USER="sentinelle"
 DB_PASS="SentinelleSecurePass2026!"
 DB_NAME="sentinelle"
