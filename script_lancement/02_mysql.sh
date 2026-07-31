@@ -5,69 +5,44 @@
 # Configuration MariaDB/MySQL pour Sentinelle V4
 ###############################################################################
 
+#!/bin/bash
+
 set -euo pipefail
 
-echo "==============================================================="
-echo " Configuration base de données Sentinelle V4"
-echo "==============================================================="
+echo ">>> Initialisation et configuration de la base de données MariaDB..."
 
-BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-APP_DIR="${BASE_DIR}/monitoring/04_sentinelle_supervision_securisee"
-
-DB_NAME="sentinelle"
 DB_USER="sentinelle"
-DB_PASSWORD="SentinelleSecurePass2026!"
-SQL_FILE="${APP_DIR}/database/sentinelle.sql"
+DB_PASS="SentinelleSecurePass2026!"
+DB_NAME="sentinelle"
 
-if [[ $EUID -ne 0 ]]; then
-    echo "[ERREUR] Ce script doit être exécuté avec sudo."
-    exit 1
-fi
+# Création de la BDD et des privilèges utilisateur
+mariadb -u root -e "CREATE DATABASE IF NOT EXISTS ${DB_NAME};"
+mariadb -u root -e "CREATE USER IF NOT EXISTS '${DB_USER}'@'localhost' IDENTIFIED BY '${DB_PASS}';"
+mariadb -u root -e "GRANT ALL PRIVILEGES ON ${DB_NAME}.* TO '${DB_USER}'@'localhost';"
+mariadb -u root -e "FLUSH PRIVILEGES;"
 
-if [[ ! -f "${SQL_FILE}" ]]; then
-    echo "[ERREUR] Fichier SQL introuvable : ${SQL_FILE}"
-    exit 1
-fi
+# Structure de la table metrics
+mariadb -u root "${DB_NAME}" -e "
+CREATE TABLE IF NOT EXISTS metrics (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    cpu_usage FLOAT DEFAULT 0,
+    ram_usage FLOAT DEFAULT 0,
+    disk_usage FLOAT DEFAULT 0,
+    swap_usage FLOAT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);"
 
-if ! systemctl is-active --quiet mariadb; then
-    echo "[INFO] Démarrage MariaDB"
-    systemctl start mariadb
-fi
+# Structure de la table events
+mariadb -u root "${DB_NAME}" -e "
+CREATE TABLE IF NOT EXISTS events (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    type VARCHAR(50) NOT NULL,
+    severity VARCHAR(20) NOT NULL,
+    message TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);"
 
-echo
-echo "[1/4] Création base de données et utilisateur"
-
-mysql <<EOF
-CREATE DATABASE IF NOT EXISTS ${DB_NAME} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE USER IF NOT EXISTS '${DB_USER}'@'localhost' IDENTIFIED BY '${DB_PASSWORD}';
-ALTER USER '${DB_USER}'@'localhost' IDENTIFIED BY '${DB_PASSWORD}';
-GRANT ALL PRIVILEGES ON ${DB_NAME}.* TO '${DB_USER}'@'localhost';
-FLUSH PRIVILEGES;
-EOF
-
-echo "[OK] Base et utilisateur configurés"
-
-echo
-echo "[2/4] Import du schéma SQL"
-mysql -u "${DB_USER}" -p"${DB_PASSWORD}" "${DB_NAME}" < "${SQL_FILE}"
-echo "[OK] Schéma V4 importé"
-
-echo
-echo "[3/4] Fichier d'authentification automatique pour les scripts Bash"
-mkdir -p /etc/mysql
-cat <<EOF > /etc/mysql/sentinelle.cnf
-[client]
-user=${DB_USER}
-password=${DB_PASSWORD}
-host=localhost
-EOF
-chmod 600 /etc/mysql/sentinelle.cnf
-
-echo
-echo "[4/4] Test connexion utilisateur Sentinelle"
-mysql --defaults-extra-file=/etc/mysql/sentinelle.cnf "${DB_NAME}" -e "SELECT NOW();" > /dev/null
-echo "[OK] Connexion fonctionnelle"
-
+echo "[SUCCÈS] Base de données 'sentinelle' et tables initialisées."
 echo
 echo "==============================================================="
 echo " Base de données Sentinelle V4 prête"
