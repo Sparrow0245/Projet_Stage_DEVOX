@@ -2,14 +2,13 @@
 
 ###############################################################################
 # Projet Stage DEVOX - Script Maître de Déploiement
-# Exécute la chaîne complète des scripts 01 à 08
+# Exécute la chaîne complète des scripts 01 à 08 + Amorce métriques
 ###############################################################################
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # On définit la racine du projet par rapport à l'emplacement de ce script.
-# (À ajuster si tes scripts de lancement ne sont pas à la racine du dépôt)
 PROJECT_DIR="${SCRIPT_DIR}"
 
 echo "==============================================================="
@@ -58,6 +57,11 @@ if [[ -f "${METRICS_SCRIPT}" ]]; then
     # Redémarrage du service cron pour prendre en compte la nouvelle tâche
     systemctl restart cron
     echo "[SUCCÈS] Tâche Cron configurée (/etc/cron.d/sentinelle_cron)."
+
+    # Amorce immédiate des métriques pour alimenter le dashboard dès le premier lancement
+    echo ">>> Amorce immédiate de la collecte des métriques..."
+    /bin/bash "${METRICS_SCRIPT}" || true
+    echo "[SUCCÈS] Premier jeu de métriques inséré."
 else
     echo "[ATTENTION] Le script ${METRICS_SCRIPT} est introuvable."
     echo "Vérifie le chemin dans la variable PROJECT_DIR de lancement.sh."
