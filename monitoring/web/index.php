@@ -8,8 +8,21 @@ $is_admin = isset($_SESSION['admin_logged']) && $_SESSION['admin_logged'] === tr
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sentinelle V4 - Supervision</title>
-    <link rel="stylesheet" href="assets/css/style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0b0f19; color: #e2e8f0; margin: 0; padding: 20px; }
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #1e293b; padding-bottom: 15px; margin-bottom: 25px; }
+        .header h1 { margin: 0; color: #38bdf8; font-size: 1.8rem; }
+        .btn { background: #0284c7; color: white; padding: 8px 16px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block; }
+        .btn:hover { background: #0369a1; }
+        .btn-danger { background: #dc2626; }
+        .cards-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 25px; }
+        .card { background: #1e293b; border-radius: 8px; padding: 20px; text-align: center; }
+        .card h3 { margin: 0 0 10px 0; color: #94a3b8; font-size: 1rem; }
+        .card .value { font-size: 2rem; font-weight: bold; color: #38bdf8; }
+        .chart-container { background: #1e293b; border-radius: 8px; padding: 20px; margin-bottom: 25px; }
+        h2 { color: #f8fafc; font-size: 1.2rem; margin-top: 0; margin-bottom: 15px; }
+    </style>
 </head>
 <body>
     <div class="header">
