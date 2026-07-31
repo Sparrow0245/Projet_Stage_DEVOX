@@ -20,15 +20,15 @@ if [[ $EUID -ne 0 ]]; then
     exit 1
 fi
 
-# 1. Mise en place des identifiants MySQL pour le collector
-echo "[1/3] Configuration du fichier d'authentification /etc/mysql/sentinelle.cnf"
-if [[ -f "${CONF_SRC}" ]]; then
+# 1. Mise en place des identifiants MySQL (uniquement si le fichier n'existe pas déjà)
+echo "[1/3] Vérification du fichier d'authentification /etc/mysql/sentinelle.cnf"
+if [[ ! -f "/etc/mysql/sentinelle.cnf" ]] && [[ -f "${CONF_SRC}" ]]; then
     cp "${CONF_SRC}" /etc/mysql/sentinelle.cnf
     chmod 600 /etc/mysql/sentinelle.cnf
     chown root:root /etc/mysql/sentinelle.cnf
-    echo "[OK] Fichier /etc/mysql/sentinelle.cnf configuré."
+    echo "[OK] Fichier /etc/mysql/sentinelle.cnf créé depuis le modèle."
 else
-    echo "[ATTENTION] Modèle de configuration introuvable : ${CONF_SRC}"
+    echo "[OK] Fichier /etc/mysql/sentinelle.cnf déjà existant et conservé."
 fi
 
 # 2. Copie des unités de services Systemd
