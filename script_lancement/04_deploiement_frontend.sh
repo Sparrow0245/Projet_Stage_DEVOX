@@ -11,7 +11,7 @@ echo "==============================================================="
 echo " Déploiement & Réparation complète de l'interface Web"
 echo "==============================================================="
 
-BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SOURCE_WEB="${BASE_DIR}/monitoring/04_sentinelle_supervision_securisee/web"
 WEB_ROOT="/var/www/html/sentinelle"
 
@@ -26,7 +26,7 @@ mkdir -p "${SOURCE_WEB}/assets/css"
 mkdir -p "${SOURCE_WEB}/assets/js"
 
 # -----------------------------------------------------------------------------
-# 1. Configuration Database + Auto-création de la table users & compte Admin
+# 1. Configuration Database + Auto-création des tables (users, metrics, events)
 # -----------------------------------------------------------------------------
 cat <<'EOF' > "${SOURCE_WEB}/config/database.php"
 <?php
@@ -40,23 +40,6 @@ try {
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
     ]);
-
-    // Auto-création de la table users si absente
-    $pdo->exec("CREATE TABLE IF NOT EXISTS users (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        username VARCHAR(50) NOT NULL UNIQUE,
-        password VARCHAR(255) NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
-
-    // Création / Réinitialisation du compte admin (admin / Admin2026!)
-    $stmt = $pdo->prepare("SELECT id FROM users WHERE username = 'admin'");
-    $stmt->execute();
-    if (!$stmt->fetch()) {
-        $hash = password_hash('Admin2026!', PASSWORD_BCRYPT);
-        $ins = $pdo->prepare("INSERT INTO users (username, password) VALUES ('admin', :pass)");
-        $ins->execute([':pass' => $hash]);
-    }
 } catch (PDOException $e) {
     try {
         $pdo = new PDO("mysql:host=localhost;dbname={$db_name};charset=utf8mb4", $db_user, $db_pass, [
@@ -69,6 +52,42 @@ try {
         echo json_encode(['status' => 'error', 'message' => 'Erreur BDD : ' . $e2->getMessage()]);
         exit;
     }
+}
+
+// Auto-création de la table users si absente
+$pdo->exec("CREATE TABLE IF NOT EXISTS users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(50) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+
+// Auto-création de la table metrics si absente
+$pdo->exec("CREATE TABLE IF NOT EXISTS metrics (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    cpu_usage FLOAT DEFAULT 0,
+    ram_usage FLOAT DEFAULT 0,
+    disk_usage FLOAT DEFAULT 0,
+    swap_usage FLOAT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+
+// Auto-création de la table events si absente
+$pdo->exec("CREATE TABLE IF NOT EXISTS events (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    type VARCHAR(50) NOT NULL,
+    severity VARCHAR(20) NOT NULL,
+    message TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+
+// Création / Réinitialisation du compte admin (admin / Admin2026!)
+$stmt = $pdo->prepare("SELECT id FROM users WHERE username = 'admin'");
+$stmt->execute();
+if (!$stmt->fetch()) {
+    $hash = password_hash('Admin2026!', PASSWORD_BCRYPT);
+    $ins = $pdo->prepare("INSERT INTO users (username, password) VALUES ('admin', :pass)");
+    $ins->execute([':pass' => $hash]);
 }
 EOF
 
@@ -96,7 +115,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             header('Location: index.php');
             exit;
         } else if ($user === 'admin' && $pass === 'Admin2026!') {
-            // Secours
             $_SESSION['admin_logged'] = true;
             $_SESSION['username'] = 'admin';
             header('Location: index.php');
@@ -271,9 +289,9 @@ try {
                         <tr>
                             <td><?= htmlspecialchars($m['id']) ?></td>
                             <td><?= htmlspecialchars($m['created_at']) ?></td>
-                            <td><?= number_format((float)$m['cpu_usage'], 2) ?> %</td>
-                            <td><?= number_format((float)$m['ram_usage'], 2) ?> %</td>
-                            <td><?= number_format((float)$m['disk_usage'], 2) ?> %</td>
+                            <td><?= number_format((float)($m['cpu_usage'] ?? 0), 2) ?> %</td>
+                            <td><?= number_format((float)($m['ram_usage'] ?? 0), 2) ?> %</td>
+                            <td><?= number_format((float)($m['disk_usage'] ?? 0), 2) ?> %</td>
                             <td><?= number_format((float)($m['swap_usage'] ?? 0), 2) ?> %</td>
                         </tr>
                     <?php endforeach; ?>
@@ -303,9 +321,9 @@ header('Content-Type: application/json');
 require_once __DIR__ . '/../config/database.php';
 
 try {
-    $stmt = $pdo->prepare("SELECT * FROM metrics ORDER BY created_at DESC LIMIT 20");
+    $stmt = $pdo->prepare("SELECT * FROM (SELECT * FROM metrics ORDER BY id DESC LIMIT 20) sub ORDER BY id ASC");
     $stmt->execute();
-    $metrics = array_reverse($stmt->fetchAll(PDO::FETCH_ASSOC));
+    $metrics = $stmt->fetchAll(PDO::FETCH_ASSOC);
     echo json_encode(['status' => 'success', 'data' => $metrics], JSON_PRETTY_PRINT);
 } catch (PDOException $e) {
     echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
@@ -318,7 +336,7 @@ header('Content-Type: application/json');
 require_once __DIR__ . '/../config/database.php';
 
 try {
-    $stmt = $pdo->prepare("SELECT * FROM events ORDER BY created_at DESC LIMIT 10");
+    $stmt = $pdo->prepare("SELECT * FROM events ORDER BY id DESC LIMIT 10");
     $stmt->execute();
     $events = $stmt->fetchAll(PDO::FETCH_ASSOC);
     echo json_encode(['status' => 'success', 'data' => $events], JSON_PRETTY_PRINT);
@@ -428,16 +446,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     const data = res.data;
                     const latest = data[data.length - 1];
 
-                    if (document.getElementById('val-cpu')) document.getElementById('val-cpu').textContent = `${parseFloat(latest.cpu_usage).toFixed(1)} %`;
-                    if (document.getElementById('val-ram')) document.getElementById('val-ram').textContent = `${parseFloat(latest.ram_usage).toFixed(1)} %`;
-                    if (document.getElementById('val-disk')) document.getElementById('val-disk').textContent = `${parseFloat(latest.disk_usage).toFixed(1)} %`;
+                    if (document.getElementById('val-cpu')) document.getElementById('val-cpu').textContent = `${parseFloat(latest.cpu_usage || 0).toFixed(1)} %`;
+                    if (document.getElementById('val-ram')) document.getElementById('val-ram').textContent = `${parseFloat(latest.ram_usage || 0).toFixed(1)} %`;
+                    if (document.getElementById('val-disk')) document.getElementById('val-disk').textContent = `${parseFloat(latest.disk_usage || 0).toFixed(1)} %`;
                     if (document.getElementById('val-swap')) document.getElementById('val-swap').textContent = `${parseFloat(latest.swap_usage || 0).toFixed(1)} %`;
 
                     if (chartInstance) {
                         chartInstance.data.labels = data.map(d => d.created_at ? d.created_at.split(' ')[1] : '');
-                        chartInstance.data.datasets[0].data = data.map(d => d.cpu_usage);
-                        chartInstance.data.datasets[1].data = data.map(d => d.ram_usage);
-                        chartInstance.data.datasets[2].data = data.map(d => d.disk_usage);
+                        chartInstance.data.datasets[0].data = data.map(d => d.cpu_usage || 0);
+                        chartInstance.data.datasets[1].data = data.map(d => d.ram_usage || 0);
+                        chartInstance.data.datasets[2].data = data.map(d => d.disk_usage || 0);
                         chartInstance.update();
                     }
                 }
@@ -452,8 +470,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         tbody.innerHTML = res.data.map(e => `
                             <tr>
                                 <td>${e.created_at || '--'}</td>
-                                <td>${e.type || 'INFO'}</td>
-                                <td><strong>${e.severity || 'LOW'}</strong></td>
+                                <td><code>${e.type || 'INFO'}</code></td>
+                                <td><strong style="color:${e.severity === 'CRITICAL' ? '#ef4444' : (e.severity === 'WARNING' ? '#f59e0b' : '#38bdf8')}">${e.severity || 'LOW'}</strong></td>
                                 <td>${e.message || ''}</td>
                             </tr>
                         `).join('');
