@@ -10,16 +10,16 @@ SERVICES=("apache2" "mariadb" "sentinelle-backend" "ssh")
 
 for SVC in "${SERVICES[@]}"; do
     if systemctl is-active --quiet "${SVC}"; then
-        STATUS="ACTIVE"
+        STATUS="active"
     else
-        STATUS="FAILED"
+        STATUS="failed"
         mysql --defaults-extra-file="${DB_CNF}" sentinelle -e \
-        "INSERT INTO events (host_id, event_type, severity, message) \
-        VALUES (1, 'SERVICE_DOWN', 'CRITICAL', 'Le service système ${SVC} est inactif ou en échec !');"
+        "INSERT INTO events (host_id, type, message) \
+        VALUES (1, 'CRITICAL', 'Le service système ${SVC} est inactif ou en échec !');"
     fi
 
     mysql --defaults-extra-file="${DB_CNF}" sentinelle -e \
     "INSERT INTO services_status (host_id, service_name, status) \
     VALUES (1, '${SVC}', '${STATUS}') \
-    ON DUPLICATE KEY UPDATE status='${STATUS}', last_check=NOW();"
+    ON DUPLICATE KEY UPDATE status='${STATUS}', updated_at=NOW();"
 done
