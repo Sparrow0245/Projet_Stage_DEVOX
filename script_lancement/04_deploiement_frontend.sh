@@ -23,6 +23,9 @@ fi
 echo "[INFO] Vérification et préparation des dossiers web source"
 mkdir -p "${SOURCE_WEB}"
 mkdir -p "${SOURCE_WEB}/api"
+mkdir -p "${SOURCE_WEB}/config"
+mkdir -p "${SOURCE_WEB}/assets/css"
+mkdir -p "${SOURCE_WEB}/assets/js"
 
 # 1. Auto-génération de historique.php si absent
 HISTORIQUE_SRC="${SOURCE_WEB}/historique.php"
@@ -38,9 +41,7 @@ if [[ ! -f "${HISTORIQUE_SRC}" ]]; then
 require_once __DIR__ . '/config/database.php';
 
 $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 100;
-if ($limit <= 0 || $limit > 1000) {
-    $limit = 100;
-}
+if ($limit <= 0 || $limit > 1000) { $limit = 100; }
 
 try {
     $stmt = $pdo->prepare("SELECT id, cpu_usage, ram_usage, disk_usage, created_at FROM metrics ORDER BY created_at DESC LIMIT :limit");
@@ -121,11 +122,6 @@ if [[ ! -f "${EVENTS_SRC}" ]]; then
     echo "[INFO] Création automatique de api/events.php dans le dossier source..."
     cat <<'EOF' > "${EVENTS_SRC}"
 <?php
-###############################################################################
-# Projet Stage DEVOX
-# Sentinelle V4 - API EndPoint Événements
-###############################################################################
-
 header('Content-Type: application/json');
 require_once __DIR__ . '/../config/database.php';
 
@@ -139,6 +135,43 @@ try {
 }
 EOF
     echo "[OK] Fichier api/events.php prêt"
+fi
+
+# 3. Auto-génération de config/database.php si absent
+DB_CONF_SRC="${SOURCE_WEB}/config/database.php"
+if [[ ! -f "${DB_CONF_SRC}" ]]; then
+    echo "[INFO] Création automatique de config/database.php..."
+    cat <<'EOF' > "${DB_CONF_SRC}"
+<?php
+$db_host = 'localhost';
+$db_name = 'sentinelle';
+$db_user = 'sentinelle';
+$db_pass = 'SentinelleSecurePass2026!';
+
+try {
+    $pdo = new PDO("mysql:host={$db_host};dbname={$db_name};charset=utf8mb4", $db_user, $db_pass, [
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        PDO::ATTR_EMULATE_PREPARES => false,
+    ]);
+} catch (PDOException $e) {
+    header('HTTP/1.1 500 Internal Server Error');
+    echo json_encode(['status' => 'error', 'message' => 'Erreur de connexion BDD']);
+    exit;
+}
+EOF
+    echo "[OK] Fichier config/database.php prêt"
+fi
+
+# 4. Auto-génération des assets CSS & JS si absents
+CSS_SRC="${SOURCE_WEB}/assets/css/style.css"
+if [[ ! -f "${CSS_SRC}" ]]; then
+    echo "/* Styles Sentinelle V4 */ body { font-family: sans-serif; background: #f4f6f9; }" > "${CSS_SRC}"
+fi
+
+JS_SRC="${SOURCE_WEB}/assets/js/dashboard.js"
+if [[ ! -f "${JS_SRC}" ]]; then
+    echo "// Scripts Dashboard Sentinelle V4" > "${JS_SRC}"
 fi
 
 echo
