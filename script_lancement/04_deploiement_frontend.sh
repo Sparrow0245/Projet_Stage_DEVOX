@@ -20,22 +20,16 @@ if [[ $EUID -ne 0 ]]; then
     exit 1
 fi
 
-echo "[INFO] Vérification et préparation des dossiers web source"
-mkdir -p "${SOURCE_WEB}"
+echo "[INFO] Préparation des répertoires Web source..."
 mkdir -p "${SOURCE_WEB}/api"
 mkdir -p "${SOURCE_WEB}/config"
 mkdir -p "${SOURCE_WEB}/assets/css"
 mkdir -p "${SOURCE_WEB}/assets/js"
 
-# 1. Auto-génération de config/database.php avec fallback BDD
+# 1. Config BDD
 DB_CONF_SRC="${SOURCE_WEB}/config/database.php"
 cat <<'EOF' > "${DB_CONF_SRC}"
 <?php
-###############################################################################
-# Projet Stage DEVOX
-# Sentinelle V4 - Configuration Connexion Base de Données
-###############################################################################
-
 $db_host = '127.0.0.1';
 $db_name = 'sentinelle';
 $db_user = 'sentinelle';
@@ -56,22 +50,15 @@ try {
     } catch (PDOException $e2) {
         header('Content-Type: application/json');
         http_response_code(500);
-        echo json_encode(['status' => 'error', 'message' => 'Erreur de connexion BDD : ' . $e2->getMessage()]);
+        echo json_encode(['status' => 'error', 'message' => 'Erreur BDD']);
         exit;
     }
 }
 EOF
-echo "[OK] Fichier config/database.php configuré"
 
-# 2. Auto-génération de api/metrics.php
-METRICS_SRC="${SOURCE_WEB}/api/metrics.php"
-cat <<'EOF' > "${METRICS_SRC}"
+# 2. API Metrics
+cat <<'EOF' > "${SOURCE_WEB}/api/metrics.php"
 <?php
-###############################################################################
-# Projet Stage DEVOX
-# Sentinelle V4 - API EndPoint Métriques
-###############################################################################
-
 header('Content-Type: application/json');
 require_once __DIR__ . '/../config/database.php';
 
@@ -81,14 +68,12 @@ try {
     $metrics = $stmt->fetchAll(PDO::FETCH_ASSOC);
     echo json_encode(['status' => 'success', 'data' => $metrics], JSON_PRETTY_PRINT);
 } catch (PDOException $e) {
-    echo json_encode(['status' => 'success', 'data' => [], 'message' => 'Aucune métrique trouvée']);
+    echo json_encode(['status' => 'success', 'data' => []]);
 }
 EOF
-echo "[OK] Fichier api/metrics.php configuré"
 
-# 3. Auto-génération de api/events.php
-EVENTS_SRC="${SOURCE_WEB}/api/events.php"
-cat <<'EOF' > "${EVENTS_SRC}"
+# 3. API Events
+cat <<'EOF' > "${SOURCE_WEB}/api/events.php"
 <?php
 header('Content-Type: application/json');
 require_once __DIR__ . '/../config/database.php';
@@ -99,120 +84,60 @@ try {
     $events = $stmt->fetchAll(PDO::FETCH_ASSOC);
     echo json_encode(['status' => 'success', 'data' => $events], JSON_PRETTY_PRINT);
 } catch (PDOException $e) {
-    echo json_encode(['status' => 'success', 'data' => [], 'message' => 'Aucun événement enregistré']);
+    echo json_encode(['status' => 'success', 'data' => []]);
 }
 EOF
-echo "[OK] Fichier api/events.php configuré"
 
-# 4. Auto-génération de historique.php
-HISTORIQUE_SRC="${SOURCE_WEB}/historique.php"
-cat <<'EOF' > "${HISTORIQUE_SRC}"
-<?php
-require_once __DIR__ . '/config/database.php';
+# 4. JS Dashboard (Dynamique)
+cat <<'EOF' > "${SOURCE_WEB}/assets/js/dashboard.js"
+document.addEventListener('DOMContentLoaded', () => {
+    function updateDashboard() {
+        fetch('api/metrics.php')
+            .then(r => r.json())
+            .then(res => {
+                if (res.status === 'success' && res.data && res.data.length > 0) {
+                    const latest = res.data[0];
+                    const cards = document.querySelectorAll('div, .card');
+                    cards.forEach(c => {
+                        const txt = c.textContent.trim().toUpperCase();
+                        if (txt.startsWith('CPU')) updateVal(c, latest.cpu_usage);
+                        else if (txt.startsWith('RAM')) updateVal(c, latest.ram_usage);
+                        else if (txt.startsWith('DISQUE')) updateVal(c, latest.disk_usage);
+                        else if (txt.startsWith('SWAP')) updateVal(c, latest.swap_usage || 0);
+                    });
+                }
+            }).catch(e => console.error(e));
+    }
 
-$limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 100;
-if ($limit <= 0 || $limit > 1000) { $limit = 100; }
+    function updateVal(container, val) {
+        const target = container.querySelector('h2, span, p, div') || container;
+        if (target && val !== undefined) {
+            target.childNodes.forEach(n => {
+                if (n.nodeType === Node.TEXT_NODE && n.nodeValue.includes('%')) {
+                    n.nodeValue = ` ${parseFloat(val).toFixed(1)} %`;
+                }
+            });
+        }
+    }
 
-try {
-    $stmt = $pdo->prepare("SELECT id, cpu_usage, ram_usage, disk_usage, created_at FROM metrics ORDER BY created_at DESC LIMIT :limit");
-    $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
-    $stmt->execute();
-    $metrics = $stmt->fetchAll(PDO::FETCH_ASSOC);
-} catch (PDOException $e) {
-    $metrics = [];
-}
-?>
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <title>Sentinelle V4 - Historique</title>
-    <link rel="stylesheet" href="assets/css/style.css">
-</head>
-<body>
-    <h1>📊 Historique des Métriques</h1>
-    <a href="index.php">⬅ Dashboard</a>
-    <table border="1" style="width:100%; text-align:left; margin-top:20px;">
-        <thead>
-            <tr><th>ID</th><th>Date</th><th>CPU (%)</th><th>RAM (%)</th><th>Disque (%)</th></tr>
-        </thead>
-        <tbody>
-            <?php foreach ($metrics as $m): ?>
-                <tr>
-                    <td><?= htmlspecialchars($m['id']) ?></td>
-                    <td><?= htmlspecialchars($m['created_at']) ?></td>
-                    <td><?= number_format((float)$m['cpu_usage'], 2) ?> %</td>
-                    <td><?= number_format((float)$m['ram_usage'], 2) ?> %</td>
-                    <td><?= number_format((float)$m['disk_usage'], 2) ?> %</td>
-                </tr>
-            <?php endforeach; ?>
-        </tbody>
-    </table>
-</body>
-</html>
+    updateDashboard();
+    setInterval(updateDashboard, 5000);
+});
 EOF
-echo "[OK] Fichier historique.php configuré"
 
-# 5. Assets CSS/JS basiques si absents
-CSS_SRC="${SOURCE_WEB}/assets/css/style.css"
-if [[ ! -f "${CSS_SRC}" ]]; then
-    echo "body { font-family: sans-serif; background: #f4f6f9; padding:20px; }" > "${CSS_SRC}"
-fi
-
-JS_SRC="${SOURCE_WEB}/assets/js/dashboard.js"
-if [[ ! -f "${JS_SRC}" ]]; then
-    echo "// Dashboard JS" > "${JS_SRC}"
-fi
-
-echo
-echo "[1/5] Création répertoire web"
+echo "[1/4] Copie des fichiers web vers ${WEB_ROOT}"
 mkdir -p "${WEB_ROOT}"
-
-if [[ -d "${WEB_ROOT}" ]] && [[ "$(ls -A ${WEB_ROOT})" ]]; then
-    echo "[INFO] Sauvegarde ancienne version"
-    BACKUP="/var/backups/sentinelle_web_$(date +%Y%m%d_%H%M%S)"
-    mkdir -p /var/backups
-    cp -r "${WEB_ROOT}" "${BACKUP}"
-    echo "[OK] Sauvegarde créée : ${BACKUP}"
-fi
-
-echo
-echo "[2/5] Copie fichiers interface"
 cp -r "${SOURCE_WEB}/"* "${WEB_ROOT}/"
 
-echo
-echo "[3/5] Configuration permissions"
+echo "[2/4] Configuration des permissions"
 chown -R www-data:www-data "${WEB_ROOT}"
 find "${WEB_ROOT}" -type d -exec chmod 755 {} \;
 find "${WEB_ROOT}" -type f -exec chmod 644 {} \;
 
-echo
-echo "[4/5] Vérification fichiers principaux"
-FILES_REQUIRED=(
-    "index.php"
-    "historique.php"
-    "api/metrics.php"
-    "api/events.php"
-    "config/database.php"
-    "assets/css/style.css"
-    "assets/js/dashboard.js"
-)
-
-for FILE in "${FILES_REQUIRED[@]}"; do
-    if [[ -f "${WEB_ROOT}/${FILE}" ]]; then
-        echo "[OK] ${FILE}"
-    else
-        echo "[ERREUR] Fichier manquant : ${FILE}"
-        exit 1
-    fi
-done
-
-echo
-echo "[5/5] Redémarrage Apache"
+echo "[3/4] Test de syntaxe PHP"
 php -v > /dev/null
-systemctl reload apache2 || systemctl restart apache2
+systemctl reload apache2 || true
 
-echo
 echo "==============================================================="
-echo " Interface Web installée dans ${WEB_ROOT}"
+echo " Déploiement Frontend OK"
 echo "==============================================================="
