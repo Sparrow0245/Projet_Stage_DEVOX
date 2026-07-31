@@ -1,9 +1,13 @@
-#!/usr/bin/env bash
-CONFIG_FILE="/opt/sentinelle/config/sentinelle.conf"
-if [ -f "$CONFIG_FILE" ]; then
-    source "$CONFIG_FILE"
-else
-    INSTALL_PATH="/opt/sentinelle"
-    LOG_PATH="/var/log/sentinelle"
-    TMP_PATH="/tmp/sentinelle"
-fi
+#!/bin/bash
+# ===================================================
+# Chargement de la Configuration Globale
+# Emplacement GitHub : monitoring/04_sentinelle_supervision_securisee/bash/utils/config.sh
+# ===================================================
+
+# Fichiers de configuration système
+MYSQL_CONF="/etc/mysql/sentinelle.cnf"
+THRESHOLDS_FILE="/var/www/html/sentinelle/config/thresholds.json"
+ENV_FILE="/var/www/html/sentinelle/config/.env"
+
+# Hôte par défaut dans la BDD
+HOST_ID=1
