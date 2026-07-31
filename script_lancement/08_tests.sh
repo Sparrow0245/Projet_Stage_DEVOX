@@ -24,8 +24,7 @@ fi
 
 # 2. Test d'exécution du Collector
 echo -n "[TEST 2/5] Exécution du script de collecte... "
-BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-COLLECTOR="${BASE_DIR}/monitoring/04_sentinelle_supervision_securisee/bash/collector.sh"
+COLLECTOR="/opt/sentinelle/bash/collector.sh"
 
 if [[ -f "${COLLECTOR}" ]] && bash "${COLLECTOR}" &>/dev/null; then
     echo "OK"
@@ -52,9 +51,9 @@ else
     echo "AVERTISSEMENT (Un ou plusieurs services inactifs)"
 fi
 
-# 5. Test de l'API Web PHP
+# 5. Test de l'API Web PHP (port 8080)
 echo -n "[TEST 5/5] Accessibilité de l'API Web metrics.php... "
-HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost/sentinelle/api/metrics.php || echo "000")
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/api/metrics.php || echo "000")
 if [ "${HTTP_CODE}" -eq 200 ]; then
     echo "OK (HTTP 200)"
 else
