@@ -5,38 +5,36 @@
 # Fichier : monitoring/scripts/enregistrer_metrics.sh
 ###############################################################################
 
-# Forcer la locale C (Anglais/ASCII) pour éviter les problèmes de traduction (ex: Mém. au lieu de Mem)
+# Force la locale C pour éviter que free/top n'utilisent des virgules au lieu des points
 export LC_ALL=C
-export LANG=C
 
-# Configuration BDD
 DB_USER="sentinelle"
 DB_PASS="SentinelleSecurePass2026!"
 DB_NAME="sentinelle"
 
-# Calcul CPU (%)
-CPU_IDLE=$(top -bn1 | grep "Cpu(s)" | awk '{print $8}' | cut -d',' -f1 | cut -d'.' -f1)
-if [ -z "$CPU_IDLE" ]; then
-    CPU_USAGE=0
-else
-    CPU_USAGE=$((100 - CPU_IDLE))
-fi
+# 1. Calcul du CPU (%)
+CPU_USAGE=$(top -bn1 | grep "Cpu(s)" | sed "s/.*, *\([0-9.]*\)%* id.*/\1/" | awk '{print 100 - $1}' 2>/dev/null || echo "0")
+CPU_USAGE=$(echo "${CPU_USAGE}" | tr ',' '.' | awk '{printf "%.2f", $1}')
 
-# Calcul RAM (%)
-RAM_USAGE=$(free | awk '/Mem:/ {if ($2 > 0) printf("%.2f", $3/$2 * 100); else print "0"}')
+# 2. Calcul de la RAM (%)
+RAM_USAGE=$(free -m | awk '/Mem:/ {if ($2>0) printf "%.2f", $3/$2*100; else print 0}')
+RAM_USAGE=$(echo "${RAM_USAGE}" | tr ',' '.')
 
-# Calcul Disque (%)
-DISK_USAGE=$(df / | awk 'NR==2 {print $5}' | sed 's/%//')
+# 3. Calcul du Disque (%)
+DISK_USAGE=$(df -h / | awk 'NR==2 {print $5}' | tr -d '%' | tr ',' '.')
 
-# Calcul SWAP (%)
-SWAP_USAGE=$(free | awk '/Swap:/ {if ($2 > 0) printf("%.2f", $3/$2 * 100); else print "0"}')
+# 4. Calcul du SWAP (%)
+SWAP_USAGE=$(free -m | awk '/Swap:/ {if ($2>0) printf "%.2f", $3/$2*100; else print 0}')
+SWAP_USAGE=$(echo "${SWAP_USAGE}" | tr ',' '.')
 
-# S'assurer que les valeurs ne sont pas vides
+# Sécurisation des variables si vides
 CPU_USAGE=${CPU_USAGE:-0}
 RAM_USAGE=${RAM_USAGE:-0}
 DISK_USAGE=${DISK_USAGE:-0}
 SWAP_USAGE=${SWAP_USAGE:-0}
 
-# Insertion MariaDB avec capture d'erreur
-mariadb -u "$DB_USER" -p"$DB_PASS" "$DB_NAME" -e \
-"INSERT INTO metrics (cpu_usage, ram_usage, disk_usage, swap_usage) VALUES ($CPU_USAGE, $RAM_USAGE, $DISK_USAGE, $SWAP_USAGE);" 2>> /tmp/sentinelle_metrics.log
+# Insertion en BDD (tentative avec l'utilisateur sentinelle, puis fallback root)
+mariadb -u"${DB_USER}" -p"${DB_PASS}" "${DB_NAME}" -e \
+"INSERT INTO metrics (cpu_usage, ram_usage, disk_usage, swap_usage) VALUES (${CPU_USAGE}, ${RAM_USAGE}, ${DISK_USAGE}, ${SWAP_USAGE});" 2>/dev/null \
+|| mariadb -u root "${DB_NAME}" -e \
+"INSERT INTO metrics (cpu_usage, ram_usage, disk_usage, swap_usage) VALUES (${CPU_USAGE}, ${RAM_USAGE}, ${DISK_USAGE}, ${SWAP_USAGE});"
