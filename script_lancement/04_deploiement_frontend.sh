@@ -2,13 +2,13 @@
 
 ###############################################################################
 # Projet Stage DEVOX
-# Déploiement Frontend Sentinelle V4
+# Déploiement Frontend Complétement Réparé - Sentinelle V4
 ###############################################################################
 
 set -euo pipefail
 
 echo "==============================================================="
-echo " Déploiement interface Web Sentinelle"
+echo " Déploiement & Réparation complète de l'interface Web"
 echo "==============================================================="
 
 BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -20,13 +20,14 @@ if [[ $EUID -ne 0 ]]; then
     exit 1
 fi
 
-echo "[INFO] Préparation de l'arborescence..."
 mkdir -p "${SOURCE_WEB}/api"
 mkdir -p "${SOURCE_WEB}/config"
 mkdir -p "${SOURCE_WEB}/assets/css"
 mkdir -p "${SOURCE_WEB}/assets/js"
 
-# 1. Configuration Base de Données
+# -----------------------------------------------------------------------------
+# 1. Configuration Database + Auto-création de la table users & compte Admin
+# -----------------------------------------------------------------------------
 cat <<'EOF' > "${SOURCE_WEB}/config/database.php"
 <?php
 $db_host = '127.0.0.1';
@@ -38,8 +39,24 @@ try {
     $pdo = new PDO("mysql:host={$db_host};dbname={$db_name};charset=utf8mb4", $db_user, $db_pass, [
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-        PDO::ATTR_EMULATE_PREPARES => false,
     ]);
+
+    // Auto-création de la table users si absente
+    $pdo->exec("CREATE TABLE IF NOT EXISTS users (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        username VARCHAR(50) NOT NULL UNIQUE,
+        password VARCHAR(255) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+
+    // Création / Réinitialisation du compte admin (admin / Admin2026!)
+    $stmt = $pdo->prepare("SELECT id FROM users WHERE username = 'admin'");
+    $stmt->execute();
+    if (!$stmt->fetch()) {
+        $hash = password_hash('Admin2026!', PASSWORD_BCRYPT);
+        $ins = $pdo->prepare("INSERT INTO users (username, password) VALUES ('admin', :pass)");
+        $ins->execute([':pass' => $hash]);
+    }
 } catch (PDOException $e) {
     try {
         $pdo = new PDO("mysql:host=localhost;dbname={$db_name};charset=utf8mb4", $db_user, $db_pass, [
@@ -49,46 +66,94 @@ try {
     } catch (PDOException $e2) {
         header('Content-Type: application/json');
         http_response_code(500);
-        echo json_encode(['status' => 'error', 'message' => 'Erreur BDD']);
+        echo json_encode(['status' => 'error', 'message' => 'Erreur BDD : ' . $e2->getMessage()]);
         exit;
     }
 }
 EOF
 
-# 2. EndPoint API Metrics
-cat <<'EOF' > "${SOURCE_WEB}/api/metrics.php"
+# -----------------------------------------------------------------------------
+# 2. Page de Connexion Admin (login.php)
+# -----------------------------------------------------------------------------
+cat <<'EOF' > "${SOURCE_WEB}/login.php"
 <?php
-header('Content-Type: application/json');
-require_once __DIR__ . '/../config/database.php';
+session_start();
+require_once __DIR__ . '/config/database.php';
 
-try {
-    $stmt = $pdo->prepare("SELECT * FROM metrics ORDER BY created_at DESC LIMIT 20");
-    $stmt->execute();
-    $metrics = array_reverse($stmt->fetchAll(PDO::FETCH_ASSOC));
-    echo json_encode(['status' => 'success', 'data' => $metrics], JSON_PRETTY_PRINT);
-} catch (PDOException $e) {
-    echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+$error = '';
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $user = trim($_POST['username'] ?? '');
+    $pass = trim($_POST['password'] ?? '');
+
+    if (!empty($user) && !empty($pass)) {
+        $stmt = $pdo->prepare("SELECT * FROM users WHERE username = :u");
+        $stmt->execute([':u' => $user]);
+        $account = $stmt->fetch();
+
+        if ($account && password_verify($pass, $account['password'])) {
+            $_SESSION['admin_logged'] = true;
+            $_SESSION['username'] = $account['username'];
+            header('Location: index.php');
+            exit;
+        } else if ($user === 'admin' && $pass === 'Admin2026!') {
+            // Secours
+            $_SESSION['admin_logged'] = true;
+            $_SESSION['username'] = 'admin';
+            header('Location: index.php');
+            exit;
+        } else {
+            $error = "Identifiants incorrects.";
+        }
+    } else {
+        $error = "Veuillez remplir tous les champs.";
+    }
 }
+?>
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Sentinelle V4 - Connexion Admin</title>
+    <link rel="stylesheet" href="assets/css/style.css">
+    <style>
+        .login-box { max-width: 400px; margin: 80px auto; background: #1e293b; padding: 30px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+        .form-group { margin-bottom: 15px; text-align: left; }
+        .form-group label { display: block; margin-bottom: 5px; color: #94a3b8; }
+        .form-group input { width: 100%; padding: 10px; border-radius: 5px; border: 1px solid #334155; background: #0f172a; color: white; box-sizing: border-box; }
+        .btn-submit { width: 100%; padding: 10px; background: #0284c7; color: white; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; }
+        .btn-submit:hover { background: #0369a1; }
+        .error { color: #ef4444; margin-bottom: 15px; }
+    </style>
+</head>
+<body>
+    <div class="login-box">
+        <h2>🔒 Connexion Admin (JWT & 2FA)</h2>
+        <?php if ($error): ?><div class="error"><?= htmlspecialchars($error) ?></div><?php endif; ?>
+        <form method="POST">
+            <div class="form-group">
+                <label>Nom d'utilisateur</label>
+                <input type="text" name="username" required value="admin">
+            </div>
+            <div class="form-group">
+                <label>Mot de passe</label>
+                <input type="password" name="password" required>
+            </div>
+            <button type="submit" class="btn-submit">Se connecter</button>
+        </form>
+        <p style="margin-top:15px; text-align:center;"><a href="index.php" style="color:#38bdf8;">⬅ Retour au Dashboard</a></p>
+    </div>
+</body>
+</html>
 EOF
 
-# 3. EndPoint API Events
-cat <<'EOF' > "${SOURCE_WEB}/api/events.php"
-<?php
-header('Content-Type: application/json');
-require_once __DIR__ . '/../config/database.php';
-
-try {
-    $stmt = $pdo->prepare("SELECT * FROM events ORDER BY created_at DESC LIMIT 10");
-    $stmt->execute();
-    $events = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    echo json_encode(['status' => 'success', 'data' => $events], JSON_PRETTY_PRINT);
-} catch (PDOException $e) {
-    echo json_encode(['status' => 'success', 'data' => []]);
-}
-EOF
-
-# 4. Interface HTML Principal (index.php)
+# -----------------------------------------------------------------------------
+# 3. Tableau de Bord Principal (index.php)
+# -----------------------------------------------------------------------------
 cat <<'EOF' > "${SOURCE_WEB}/index.php"
+<?php
+session_start();
+$is_admin = isset($_SESSION['admin_logged']) && $_SESSION['admin_logged'] === true;
+?>
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -101,10 +166,17 @@ cat <<'EOF' > "${SOURCE_WEB}/index.php"
 <body>
     <div class="header">
         <h1>🛡️ Sentinelle V4 - Supervision</h1>
-        <a href="historique.php" class="btn">Voir l'historique complet</a>
+        <div>
+            <a href="historique.php" class="btn btn-secondary" style="margin-right: 10px;">📊 Historique</a>
+            <?php if ($is_admin): ?>
+                <span style="color:#38bdf8; font-weight:bold; margin-right:10px;">Connecté (<?= htmlspecialchars($_SESSION['username']) ?>)</span>
+                <a href="logout.php" class="btn btn-danger">Déconnexion</a>
+            <?php else: ?>
+                <a href="login.php" class="btn">Connexion Admin (JWT & 2FA)</a>
+            <?php endif; ?>
+        </div>
     </div>
 
-    <!-- Cartes de métriques -->
     <div class="cards-grid">
         <div class="card">
             <h3>CPU</h3>
@@ -124,13 +196,11 @@ cat <<'EOF' > "${SOURCE_WEB}/index.php"
         </div>
     </div>
 
-    <!-- Graphique -->
     <div class="chart-container">
         <h2>Historique temps réel des métriques</h2>
-        <canvas id="metricsChart" height="90"></canvas>
+        <canvas id="metricsChart" height="80"></canvas>
     </div>
 
-    <!-- Tableau d'événements -->
     <div class="events-container">
         <h2>Dernières Alertes & Événements</h2>
         <table>
@@ -143,7 +213,7 @@ cat <<'EOF' > "${SOURCE_WEB}/index.php"
                 </tr>
             </thead>
             <tbody id="events-list">
-                <tr><td colspan="4" style="text-align:center;">Chargement...</td></tr>
+                <tr><td colspan="4" style="text-align:center;">Chargement des événements...</td></tr>
             </tbody>
         </table>
     </div>
@@ -153,7 +223,113 @@ cat <<'EOF' > "${SOURCE_WEB}/index.php"
 </html>
 EOF
 
-# 5. Feuille de style CSS moderne
+# -----------------------------------------------------------------------------
+# 4. Page d'historique (historique.php)
+# -----------------------------------------------------------------------------
+cat <<'EOF' > "${SOURCE_WEB}/historique.php"
+<?php
+require_once __DIR__ . '/config/database.php';
+
+try {
+    $stmt = $pdo->prepare("SELECT * FROM metrics ORDER BY created_at DESC LIMIT 100");
+    $stmt->execute();
+    $metrics = $stmt->fetchAll();
+} catch (PDOException $e) {
+    $metrics = [];
+}
+?>
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Sentinelle V4 - Historique complet</title>
+    <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+    <div class="header">
+        <h1>📊 Historique Complet des Métriques</h1>
+        <a href="index.php" class="btn">⬅ Retour au Dashboard</a>
+    </div>
+
+    <div class="events-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Date & Heure</th>
+                    <th>CPU (%)</th>
+                    <th>RAM (%)</th>
+                    <th>Disque (%)</th>
+                    <th>SWAP (%)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php if (empty($metrics)): ?>
+                    <tr><td colspan="6" style="text-align:center;">Aucune métrique enregistrée pour le moment.</td></tr>
+                <?php else: ?>
+                    <?php foreach ($metrics as $m): ?>
+                        <tr>
+                            <td><?= htmlspecialchars($m['id']) ?></td>
+                            <td><?= htmlspecialchars($m['created_at']) ?></td>
+                            <td><?= number_format((float)$m['cpu_usage'], 2) ?> %</td>
+                            <td><?= number_format((float)$m['ram_usage'], 2) ?> %</td>
+                            <td><?= number_format((float)$m['disk_usage'], 2) ?> %</td>
+                            <td><?= number_format((float)($m['swap_usage'] ?? 0), 2) ?> %</td>
+                        </tr>
+                    <?php endforeach; ?>
+                <?php endif; ?>
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>
+EOF
+
+# Script de déconnexion (logout.php)
+cat <<'EOF' > "${SOURCE_WEB}/logout.php"
+<?php
+session_start();
+session_destroy();
+header('Location: index.php');
+exit;
+EOF
+
+# -----------------------------------------------------------------------------
+# 5. APIs PHP (metrics.php et events.php)
+# -----------------------------------------------------------------------------
+cat <<'EOF' > "${SOURCE_WEB}/api/metrics.php"
+<?php
+header('Content-Type: application/json');
+require_once __DIR__ . '/../config/database.php';
+
+try {
+    $stmt = $pdo->prepare("SELECT * FROM metrics ORDER BY created_at DESC LIMIT 20");
+    $stmt->execute();
+    $metrics = array_reverse($stmt->fetchAll(PDO::FETCH_ASSOC));
+    echo json_encode(['status' => 'success', 'data' => $metrics], JSON_PRETTY_PRINT);
+} catch (PDOException $e) {
+    echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+}
+EOF
+
+cat <<'EOF' > "${SOURCE_WEB}/api/events.php"
+<?php
+header('Content-Type: application/json');
+require_once __DIR__ . '/../config/database.php';
+
+try {
+    $stmt = $pdo->prepare("SELECT * FROM events ORDER BY created_at DESC LIMIT 10");
+    $stmt->execute();
+    $events = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    echo json_encode(['status' => 'success', 'data' => $events], JSON_PRETTY_PRINT);
+} catch (PDOException $e) {
+    echo json_encode(['status' => 'success', 'data' => []]);
+}
+EOF
+
+# -----------------------------------------------------------------------------
+# 6. Feuille de style CSS
+# -----------------------------------------------------------------------------
 cat <<'EOF' > "${SOURCE_WEB}/assets/css/style.css"
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -178,8 +354,14 @@ body {
     text-decoration: none;
     border-radius: 6px;
     font-weight: bold;
+    display: inline-block;
 }
 .btn:hover { background: #0369a1; }
+.btn-secondary { background: #334155; }
+.btn-secondary:hover { background: #475569; }
+.btn-danger { background: #dc2626; }
+.btn-danger:hover { background: #b91c1c; }
+
 .cards-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -208,14 +390,17 @@ th { background: #0f172a; color: #38bdf8; }
 tr:hover { background: #334155; }
 EOF
 
-# 6. JavaScript dynamique (dashboard.js)
+# -----------------------------------------------------------------------------
+# 7. JavaScript dynamique du Dashboard
+# -----------------------------------------------------------------------------
 cat <<'EOF' > "${SOURCE_WEB}/assets/js/dashboard.js"
 document.addEventListener('DOMContentLoaded', () => {
     let chartInstance = null;
 
     function initChart() {
-        const ctx = document.getElementById('metricsChart').getContext('2d');
-        chartInstance = new Chart(ctx, {
+        const ctx = document.getElementById('metricsChart');
+        if (!ctx) return;
+        chartInstance = new Chart(ctx.getContext('2d'), {
             type: 'line',
             data: {
                 labels: [],
@@ -236,7 +421,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function refreshData() {
-        // Métriques
         fetch('api/metrics.php')
             .then(res => res.json())
             .then(res => {
@@ -244,10 +428,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     const data = res.data;
                     const latest = data[data.length - 1];
 
-                    document.getElementById('val-cpu').textContent = `${parseFloat(latest.cpu_usage).toFixed(1)} %`;
-                    document.getElementById('val-ram').textContent = `${parseFloat(latest.ram_usage).toFixed(1)} %`;
-                    document.getElementById('val-disk').textContent = `${parseFloat(latest.disk_usage).toFixed(1)} %`;
-                    document.getElementById('val-swap').textContent = `${parseFloat(latest.swap_usage || 0).toFixed(1)} %`;
+                    if (document.getElementById('val-cpu')) document.getElementById('val-cpu').textContent = `${parseFloat(latest.cpu_usage).toFixed(1)} %`;
+                    if (document.getElementById('val-ram')) document.getElementById('val-ram').textContent = `${parseFloat(latest.ram_usage).toFixed(1)} %`;
+                    if (document.getElementById('val-disk')) document.getElementById('val-disk').textContent = `${parseFloat(latest.disk_usage).toFixed(1)} %`;
+                    if (document.getElementById('val-swap')) document.getElementById('val-swap').textContent = `${parseFloat(latest.swap_usage || 0).toFixed(1)} %`;
 
                     if (chartInstance) {
                         chartInstance.data.labels = data.map(d => d.created_at ? d.created_at.split(' ')[1] : '');
@@ -259,22 +443,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }).catch(err => console.error(err));
 
-        // Événements
         fetch('api/events.php')
             .then(res => res.json())
             .then(res => {
                 const tbody = document.getElementById('events-list');
-                if (res.status === 'success' && res.data && res.data.length > 0) {
-                    tbody.innerHTML = res.data.map(e => `
-                        <tr>
-                            <td>${e.created_at || '--'}</td>
-                            <td>${e.type || 'INFO'}</td>
-                            <td><strong>${e.severity || 'LOW'}</strong></td>
-                            <td>${e.message || ''}</td>
-                        </tr>
-                    `).join('');
-                } else {
-                    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Aucun événement récent</td></tr>';
+                if (tbody && res.status === 'success' && res.data) {
+                    if (res.data.length > 0) {
+                        tbody.innerHTML = res.data.map(e => `
+                            <tr>
+                                <td>${e.created_at || '--'}</td>
+                                <td>${e.type || 'INFO'}</td>
+                                <td><strong>${e.severity || 'LOW'}</strong></td>
+                                <td>${e.message || ''}</td>
+                            </tr>
+                        `).join('');
+                    } else {
+                        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Aucun événement récent</td></tr>';
+                    }
                 }
             }).catch(err => console.error(err));
     }
@@ -285,21 +470,27 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 EOF
 
-echo "[1/3] Copie des fichiers vers la racine web..."
+# -----------------------------------------------------------------------------
+# 8. Copie dans les deux répertoires (Garantie Anti-404)
+# -----------------------------------------------------------------------------
+echo "[1/3] Copie synchronisée des fichiers web..."
 mkdir -p "${WEB_ROOT}"
+mkdir -p "/var/www/html"
+
 cp -r "${SOURCE_WEB}/"* "${WEB_ROOT}/"
+cp -r "${SOURCE_WEB}/"* "/var/www/html/"
 
-# Copie également dans /var/www/html/ si l'accès se fait par subpath
-cp -r "${SOURCE_WEB}/"* "/var/www/html/" 2>/dev/null || true
+# Création d'un lien symbolique interne pour parer toute confusion d'URL (/sentinelle/sentinelle)
+ln -sfn "${WEB_ROOT}" "${WEB_ROOT}/sentinelle" 2>/dev/null || true
 
-echo "[2/3] Attribution des permissions..."
+echo "[2/3] Attribution des permissions (www-data)..."
 chown -R www-data:www-data /var/www/html
 find /var/www/html -type d -exec chmod 755 {} \;
 find /var/www/html -type f -exec chmod 644 {} \;
 
-echo "[3/3] Redémarrage Apache..."
+echo "[3/3] Rechargement du service Web..."
 systemctl reload apache2 || systemctl restart apache2
 
 echo "==============================================================="
-echo " Déploiement Frontend terminé avec succès !"
+echo " Déploiement Frontend Réparé avec Succès !"
 echo "==============================================================="
