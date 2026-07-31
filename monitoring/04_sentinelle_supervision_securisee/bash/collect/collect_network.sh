@@ -16,6 +16,5 @@ NET_TX=$(cat /sys/class/net/"${IFACE}"/statistics/tx_bytes 2>/dev/null || echo 0
 NET_RX_KB=$((NET_RX / 1024))
 NET_TX_KB=$((NET_TX / 1024))
 
-mysql --defaults-extra-file="${DB_CNF}" sentinelle -e \
-"INSERT INTO metrics (host_id, cpu_usage, ram_usage, disk_usage, swap_usage, network_rx_kb, network_tx_kb) \
-VALUES (1, 0, 0, 0, 0, ${NET_RX_KB}, ${NET_TX_KB});"
+# Journalisation dans les événements système si activité réseau détectée
+logger -t sentinelle-network "Interface ${IFACE} - RX: ${NET_RX_KB} KB, TX: ${NET_TX_KB} KB"
