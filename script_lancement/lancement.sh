@@ -42,7 +42,7 @@ done
 
 echo -e "\n==============================================================="
 echo " DÉPLOIEMENT TERMINÉ !"
-echo " Interface publique : http://localhost/sentinelle/"
-echo " Console Admin     : http://localhost/sentinelle/login.php"
+echo " Interface publique : http://localhost:8080/"
+echo " Console Admin     : http://localhost:8080/login.php"
 echo " Identifiants Admin : admin / Admin2026!"
 echo "==============================================================="
