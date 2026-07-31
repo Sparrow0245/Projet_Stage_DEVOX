@@ -12,6 +12,6 @@ FAILED_ATTEMPTS=$(journalctl -u ssh --since "5 minutes ago" 2>/dev/null | grep -
 
 if [ "${FAILED_ATTEMPTS}" -gt 0 ]; then
     mysql --defaults-extra-file="${DB_CNF}" sentinelle -e \
-    "INSERT INTO events (host_id, event_type, severity, message) \
-    VALUES (1, 'AUTH_FAILURE', 'CRITICAL', 'Alerte sécurité SSH : ${FAILED_ATTEMPTS} échec(s) de connexion détecté(s).');"
+    "INSERT INTO events (host_id, type, message) \
+    VALUES (1, 'CRITICAL', 'Alerte sécurité SSH : ${FAILED_ATTEMPTS} échec(s) de connexion détecté(s).');"
 fi
