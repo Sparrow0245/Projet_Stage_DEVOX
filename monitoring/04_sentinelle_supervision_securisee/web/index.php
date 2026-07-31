@@ -98,13 +98,8 @@ $is_admin = isset($_SESSION['admin_logged']) && $_SESSION['admin_logged'] === tr
             });
         }
 
-        function getBasePath() {
-            const path = window.location.pathname;
-            return path.substring(0, path.lastIndexOf('/'));
-        }
-
         function refreshMetrics() {
-            fetch(getBasePath() + '/api/metrics.php')
+            fetch('api/metrics.php')
                 .then(res => res.json())
                 .then(res => {
                     if (res.status === 'success' && res.data && res.data.length > 0) {
@@ -128,7 +123,7 @@ $is_admin = isset($_SESSION['admin_logged']) && $_SESSION['admin_logged'] === tr
         }
 
         function refreshEvents() {
-            fetch(getBasePath() + '/api/events.php')
+            fetch('api/events.php')
                 .then(res => res.json())
                 .then(res => {
                     if (res.status === 'success' && res.data) {
