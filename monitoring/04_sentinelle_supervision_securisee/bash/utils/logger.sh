@@ -1,10 +1,17 @@
-#!/usr/bin/env bash
-source "$(dirname "$0")/config.sh"
+#!/bin/bash
+# ===================================================
+# Utilitaire de Journalisation Syslog
+# Emplacement GitHub : monitoring/04_sentinelle_supervision_securisee/bash/utils/logger.sh
+# ===================================================
 
-log_msg() {
-    local level="$1"
-    local message="$2"
-    local timestamp=$(date "+%Y-%m-%d %H:%M:%S")
-    echo "[$timestamp] [$level] $message" >> "${LOG_PATH}/monitor.log"
-    logger -t "sentinelle" "[$level] $message"
+log_info() {
+    logger -t "sentinelle-v4" "[INFO] $1"
+}
+
+log_warning() {
+    logger -t "sentinelle-v4" "[WARNING] $1"
+}
+
+log_error() {
+    logger -t "sentinelle-v4" "[ERROR] $1"
 }
