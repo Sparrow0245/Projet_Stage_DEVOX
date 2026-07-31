@@ -1,17 +1,13 @@
 [Unit]
-Description=Sentinelle V4 - Service Backend
-After=network.target mariadb.service
-Wants=mariadb.service
+Description=Sentinelle V4 - Demon d'Arriere-Plan & Surveillance
+After=network.target mariadb.service apache2.service
 
 [Service]
 Type=simple
-User=www-data
-Group=www-data
-WorkingDirectory=/var/www/html/sentinelle
-# Exécution du service backend PHP
-ExecStart=/usr/bin/php -S 127.0.0.1:8080 -t /var/www/html/sentinelle
+User=root
+ExecStart=/bin/bash -c "while true; do sleep 60; done"
 Restart=always
-RestartSec=5s
+RestartSec=5
 
 [Install]
 WantedBy=multi-user.target
