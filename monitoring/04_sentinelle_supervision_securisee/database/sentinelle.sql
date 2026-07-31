@@ -1,6 +1,6 @@
 -- ===============================================================
--- Sentinelle V4 - Initialisation de la Base de Données
--- Fichier : sentinelle.sql
+-- Sentinelle V4 - Initialisation de la Base de Données (Mise à jour 2FA)
+-- Fichier : monitoring/04_sentinelle_supervision_securisee/database/sentinelle.sql
 -- ===============================================================
 
 CREATE DATABASE IF NOT EXISTS sentinelle CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
@@ -14,12 +14,11 @@ CREATE TABLE IF NOT EXISTS hosts (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 
--- Insertion de l'hôte par défaut (host_id = 1)
 INSERT INTO hosts (id, hostname, ip_address)
 VALUES (1, 'localhost', '127.0.0.1')
 ON DUPLICATE KEY UPDATE hostname='localhost';
 
--- 2. Table unifiée des métriques (CPU, RAM, Disque, SWAP, Réseau)
+-- 2. Table unifiée des métriques
 CREATE TABLE IF NOT EXISTS metrics (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     host_id INT NOT NULL DEFAULT 1,
@@ -33,7 +32,7 @@ CREATE TABLE IF NOT EXISTS metrics (
     FOREIGN KEY (host_id) REFERENCES hosts(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
--- 3. Table des événements et alertes de sécurité (SSH, dépassements de seuils)
+-- 3. Table des événements et alertes
 CREATE TABLE IF NOT EXISTS events (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     host_id INT NOT NULL DEFAULT 1,
@@ -54,16 +53,17 @@ CREATE TABLE IF NOT EXISTS services_status (
     FOREIGN KEY (host_id) REFERENCES hosts(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
--- 5. Table des utilisateurs
+-- 5. Table des utilisateurs avec support Google Authenticator (TOTP)
 CREATE TABLE IF NOT EXISTS users (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     username VARCHAR(50) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL,
     role VARCHAR(20) NOT NULL DEFAULT 'USER',
+    totp_secret VARCHAR(32) NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 
--- Compte Administrateur par défaut
-INSERT INTO users (username, password, role) 
-VALUES ('admin', '$2a$10$e8R1/m6/4Hj.6dJkO4f1m.8x9U0Z2E4Y6X8W0V2U4T6R8P0N2M4L6', 'ADMIN')
+-- Compte Administrateur par défaut avec secret TOTP de test (Exemple: JBSWY3DPEHPK3PXP)
+INSERT INTO users (username, password, role, totp_secret) 
+VALUES ('admin', '$2a$10$e8R1/m6/4Hj.6dJkO4f1m.8x9U0Z2E4Y6X8W0V2U4T6R8P0N2M4L6', 'ADMIN', 'JBSWY3DPEHPK3PXP')
 ON DUPLICATE KEY UPDATE id=id;
