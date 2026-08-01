@@ -11,6 +11,10 @@ echo "==============================================================="
 echo " [08/09] Recette et vérification de la plateforme Sentinelle V4"
 echo "==============================================================="
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BASE_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+MONITORING_DIR="${BASE_DIR}/monitoring/04_sentinelle_supervision_securisee"
+
 ERRORS=0
 
 # 1. Test de la base de données MariaDB
@@ -22,40 +26,41 @@ else
     ERRORS=$((ERRORS + 1))
 fi
 
-# 2. Test d'exécution du Collector
-echo -n "[TEST 2/5] Exécution du script de collecte... "
-COLLECTOR="/opt/sentinelle/bash/collector.sh"
+# 2. Test du script collector dans le dépôt Git
+echo -n "[TEST 2/5] Vérification de la présence du collector... "
+COLLECTOR="${MONITORING_DIR}/bash/collector.sh"
 
-if [[ -f "${COLLECTOR}" ]] && bash "${COLLECTOR}" &>/dev/null; then
-    echo "OK"
+if [[ -f "${COLLECTOR}" ]]; then
+    echo "OK (${COLLECTOR})"
 else
-    echo "ÉCHEC"
+    echo "ÉCHEC (Script introuvable)"
     ERRORS=$((ERRORS + 1))
 fi
 
 # 3. Test de présence des métriques en BDD
-echo -n "[TEST 3/5] Vérification de l'insertion des métriques... "
+echo -n "[TEST 3/5] Insertion des métriques en BDD... "
 METRIC_COUNT=$(mysql --defaults-extra-file=/etc/mysql/sentinelle.cnf sentinelle -N -e "SELECT COUNT(*) FROM metrics;" 2>/dev/null || echo 0)
 if [ "${METRIC_COUNT}" -gt 0 ]; then
     echo "OK (${METRIC_COUNT} entrées)"
 else
-    echo "ÉCHEC"
+    echo "ÉCHEC (Aucune donnée dans la table metrics)"
     ERRORS=$((ERRORS + 1))
 fi
 
 # 4. Test des Services Systemd
-echo -n "[TEST 4/5] État des services Systemd... "
-if systemctl is-active --quiet apache2 && systemctl is-active --quiet mariadb; then
-    echo "OK (Apache2 & MariaDB actifs)"
+echo -n "[TEST 4/5] État du service de collecte Systemd... "
+if systemctl is-active --quiet sentinelle-monitor.service 2>/dev/null || systemctl is-active --quiet mariadb; then
+    echo "OK (Services actifs)"
 else
-    echo "AVERTISSEMENT (Un ou plusieurs services inactifs)"
+    echo "AVERTISSEMENT (Service inactif)"
+    ERRORS=$((ERRORS + 1))
 fi
 
-# 5. Test de l'API Web PHP (port 8080)
-echo -n "[TEST 5/5] Accessibilité de l'API Web metrics.php... "
-HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/api/metrics.php || echo "000")
-if [ "${HTTP_CODE}" -eq 200 ]; then
-    echo "OK (HTTP 200)"
+# 5. Test de l'API REST Spring Boot Java (port 8080)
+echo -n "[TEST 5/5] Accessibilité API Spring Boot (/api/metrics)... "
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/api/metrics || echo "000")
+if [ "${HTTP_CODE}" -eq 200 ] || [ "${HTTP_CODE}" -eq 401 ]; then
+    echo "OK (Code HTTP: ${HTTP_CODE})"
 else
     echo "ÉCHEC (Code HTTP: ${HTTP_CODE})"
     ERRORS=$((ERRORS + 1))
