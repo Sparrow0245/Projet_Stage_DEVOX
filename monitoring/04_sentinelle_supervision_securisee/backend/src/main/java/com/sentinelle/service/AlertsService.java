@@ -16,6 +16,10 @@ public class AlertsService {
         return alertsRepository.findAll();
     }
 
+    public List<Alert> getActiveAlerts() {
+        return alertsRepository.findByStatus("active");
+    }
+
     public Alert saveAlert(Alert alert) {
         return alertsRepository.save(alert);
     }
