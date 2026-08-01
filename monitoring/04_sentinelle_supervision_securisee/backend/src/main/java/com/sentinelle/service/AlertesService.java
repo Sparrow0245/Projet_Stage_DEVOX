@@ -7,7 +7,7 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 
 @Service
-public class AlerteService {
+public class AlertsService {
 
     @Autowired
     private AlertsRepository alertsRepository;
