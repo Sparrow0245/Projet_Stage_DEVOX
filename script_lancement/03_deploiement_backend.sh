@@ -57,16 +57,11 @@ cp -r "${SOURCE_BASH}/"* "${INSTALL_DIR}/bash/" 2>/dev/null || true
 chmod -R +x "${INSTALL_DIR}/bash/"
 chmod 755 /var/log/sentinelle
 
-echo "[6/6] Démarrage du backend Spring Boot"
+echo "[6/6] Démarrage du backend Spring Boot en arrière-plan"
 cd "${INSTALL_DIR}/backend"
 nohup java -jar "${INSTALL_DIR}/backend/sentinelle-backend-4.0.0.jar" --spring.config.location=file:${INSTALL_DIR}/config/ > /var/log/sentinelle/backend.log 2>&1 &
 
-# Exécution immédiate d'une collecte pour peupler la table metrics avant les tests
-if [ -f "${INSTALL_DIR}/bash/collector.sh" ]; then
-    bash "${INSTALL_DIR}/bash/collector.sh" >/dev/null 2>&1 || true
-fi
-
-sleep 2
+sleep 3
 
 echo "==============================================================="
 echo " Backend Spring Boot & Scripts déployés"
