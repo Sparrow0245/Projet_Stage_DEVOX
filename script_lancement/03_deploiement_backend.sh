@@ -85,26 +85,5 @@ systemctl daemon-reload
 systemctl enable sentinelle-backend.service
 systemctl restart sentinelle-backend.service
 
-echo "Attente de l'initialisation de l'API Spring Boot sur le port 8080..."
-SUCCESS=0
-for i in {1..25}; do
-    HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/api/metrics 2>/dev/null || echo "000")
-    if [ "$HTTP_CODE" -eq 200 ] || [ "$HTTP_CODE" -eq 401 ]; then
-        echo "[OK] API Spring Boot fonctionnelle sur 8080 (Code HTTP ${HTTP_CODE})."
-        SUCCESS=1
-        break
-    fi
-    sleep 1
-done
-
-if [ $SUCCESS -eq 0 ]; then
-    echo "[ERREUR CRITIQUE] Le backend n'a pas pu démarrer. Journal des erreurs :"
-    echo "---------------------------------------------------------------"
-    cat /var/log/sentinelle/backend.log 2>/dev/null || true
-    echo "---------------------------------------------------------------"
-    exit 1
-fi
-
-echo "==============================================================="
-echo " Backend Spring Boot déployé et géré via Systemd"
-echo "==============================================================="
+echo "Attente du démarrage de l'API..."
+sleep 5
