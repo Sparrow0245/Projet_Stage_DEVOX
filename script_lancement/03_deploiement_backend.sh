@@ -25,7 +25,7 @@ if [[ $EUID -ne 0 ]]; then
     exit 1
 fi
 
-echo "[1/6] Nettoyage des anciens processus Java"
+echo "[1/6] Nettoyage des anciennes instances Java"
 pkill -f "sentinelle-backend" 2>/dev/null || true
 pkill -f "java -jar" 2>/dev/null || true
 sleep 1
@@ -60,10 +60,10 @@ chmod 755 /var/log/sentinelle
 echo "[6/6] Démarrage du backend Spring Boot"
 nohup java -jar "${INSTALL_DIR}/backend/sentinelle-backend-4.0.0.jar" > /var/log/sentinelle/backend.log 2>&1 &
 
-echo "Attente du démarrage sur le port 8080..."
+echo "Attente de l'ouverture du port 8080..."
 for i in {1..20}; do
     if curl -s http://localhost:8080/api/metrics >/dev/null 2>&1; then
-        echo "[OK] Spring Boot actif sur 8080."
+        echo "[OK] Spring Boot actif sur le port 8080."
         break
     fi
     sleep 1
