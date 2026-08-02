@@ -25,9 +25,10 @@ if [[ $EUID -ne 0 ]]; then
     exit 1
 fi
 
-echo "[1/6] Nettoyage des anciennes instances Java"
+echo "[1/6] Libération du port 8080 et nettoyage des anciens processus Java"
+fuser -k 8080/tcp 2>/dev/null || true
 pkill -9 -f "sentinelle-backend" 2>/dev/null || true
-pkill -9 -f "java -jar" 2>/dev/null || true
+pkill -9 -f "java" 2>/dev/null || true
 sleep 1
 
 echo "[2/6] Création de l'arborescence /opt/sentinelle"
@@ -59,20 +60,26 @@ chmod 755 /var/log/sentinelle
 
 echo "[6/6] Démarrage du backend Spring Boot"
 cd "${INSTALL_DIR}/backend"
-nohup java -jar "${INSTALL_DIR}/backend/sentinelle-backend-4.0.0.jar" --spring.config.location=file:${INSTALL_DIR}/config/ > /var/log/sentinelle/backend.log 2>&1 < /dev/null &
+nohup java -jar "${INSTALL_DIR}/backend/sentinelle-backend-4.0.0.jar" \
+    --server.port=8080 \
+    --spring.config.additional-location=optional:file:${INSTALL_DIR}/config/ \
+    > /var/log/sentinelle/backend.log 2>&1 < /dev/null &
 
-echo "Attente du démarrage effectif de Spring Boot sur le port 8080..."
-MAX_ATTEMPTS=25
-COUNT=0
-while [ $COUNT -lt $MAX_ATTEMPTS ]; do
-    HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/api/metrics || echo "000")
-    if [ "$HTTP_STATUS" -eq 200 ]; then
-        echo "[OK] API Spring Boot active (HTTP 200)."
+echo "Vérification de la disponibilité de l'API sur le port 8080..."
+SUCCESS=0
+for i in {1..25}; do
+    if curl -s -f http://localhost:8080/api/metrics >/dev/null 2>&1; then
+        echo "[OK] Backend Spring Boot opérationnel sur 8080."
+        SUCCESS=1
         break
     fi
     sleep 1
-    COUNT=$((COUNT + 1))
 done
+
+if [ $SUCCESS -eq 0 ]; then
+    echo "[AVERTISSEMENT] Le port 8080 ne répond pas encore. Extrait du log :"
+    tail -n 15 /var/log/sentinelle/backend.log 2>/dev/null || true
+fi
 
 echo "==============================================================="
 echo " Backend Spring Boot & Scripts déployés"
