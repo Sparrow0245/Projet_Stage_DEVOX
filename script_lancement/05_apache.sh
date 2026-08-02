@@ -5,46 +5,39 @@
 # Configuration Apache2 - Sentinelle V4
 ###############################################################################
 
-set -euo pipefail
+echo ">>> Configuration d'Apache et du Reverse Proxy..."
 
-if [[ $EUID -ne 0 ]]; then
-    echo "[ERREUR] Ce script doit être exécuté avec sudo."
-    exit 1
-fi
+# Enable required Apache modules
+sudo a2enmod rewrite proxy proxy_http
 
-VHOST_CONF="/etc/apache2/sites-available/sentinelle.conf"
+# Ensure Apache listens ONLY on port 80
+sudo sed -i 's/Listen 8080//g' /etc/apache2/ports.conf 2>/dev/null || true
 
-echo "[1/3] Configuration du port 8080"
-if ! grep -q "Listen 8080" /etc/apache2/ports.conf; then
-    echo "Listen 8080" >> /etc/apache2/ports.conf
-fi
+# Write Sentinelle VirtualHost configuration
+cat << 'EOF' | sudo tee /etc/apache2/sites-available/sentinelle.conf > /dev/null
+<VirtualHost *:80>
+    ServerName localhost
+    DocumentRoot /var/www/html/sentinelle
 
-echo "[2/3] Génération du VirtualHost sur /var/www/html"
-cat <<EOF > "${VHOST_CONF}"
-<VirtualHost *:8080>
-    ServerAdmin admin@sentinelle.local
-    DocumentRoot /var/www/html
-    DirectoryIndex index.php index.html
-
-    <Directory /var/www/html>
+    <Directory /var/www/html/sentinelle>
         Options -Indexes +FollowSymLinks
         AllowOverride All
         Require all granted
     </Directory>
 
-    Alias /sentinelle /var/www/html/sentinelle
+    # Redirection de l'API vers Spring Boot
+    ProxyPreserveHost On
+    ProxyPass /api http://127.0.0.1:8080/api
+    ProxyPassReverse /api http://127.0.0.1:8080/api
 
-    ErrorLog \${APACHE_LOG_DIR}/sentinelle_error.log
-    CustomLog \${APACHE_LOG_DIR}/sentinelle_access.log combined
+    ErrorLog ${APACHE_LOG_DIR}/sentinelle_error.log
+    CustomLog ${APACHE_LOG_DIR}/sentinelle_access.log combined
 </VirtualHost>
 EOF
 
-echo "[3/3] Activation et redémarrage d'Apache"
-rm -f /var/www/html/index.html
-a2dissite 000-default.conf 2>/dev/null || true
-a2ensite sentinelle.conf
-systemctl restart apache2
+# Enable site and restart service
+sudo a2dissite 000-default.conf 2>/dev/null || true
+sudo a2ensite sentinelle.conf
+sudo systemctl restart apache2
 
-echo "==============================================================="
-echo " Apache2 reconfiguré sur http://localhost:8080/"
-echo "==============================================================="
+echo "[OK] Apache configuré sur le port 80 avec Reverse Proxy vers 8080."
