@@ -5,6 +5,8 @@
 # Compilation & Déploiement du Backend Spring Boot Java 21
 ###############################################################################
 
+set -euo pipefail
+
 echo "==============================================================="
 echo " Déploiement Backend Spring Boot"
 echo "==============================================================="
@@ -23,7 +25,12 @@ if [[ $EUID -ne 0 ]]; then
     exit 1
 fi
 
-echo "[1/6] Création de l'arborescence /opt/sentinelle"
+echo "[1/6] Nettoyage des processus Java existants"
+pkill -f "sentinelle-backend" 2>/dev/null || true
+pkill -f "java -jar" 2>/dev/null || true
+sleep 1
+
+echo "[2/6] Création de l'arborescence /opt/sentinelle"
 mkdir -p \
     "${INSTALL_DIR}/backend" \
     "${INSTALL_DIR}/config" \
@@ -32,16 +39,11 @@ mkdir -p \
     /var/log/sentinelle \
     /tmp/sentinelle
 
-echo "[2/6] Nettoyage des anciennes instances Java"
-pkill -f "sentinelle-backend" 2>/dev/null || true
-pkill -f "java -jar" 2>/dev/null || true
-sleep 1
-
 echo "[3/6] Compilation Maven du Backend"
 cd "${SOURCE_BACKEND}"
 mvn clean package -DskipTests
 
-echo "[4/6] Déploiement du fichier JAR"
+echo "[4/6] Déploiement de l'exécutable JAR"
 JAR_SOURCE=$(find target/ -name "*.jar" ! -name "*sources.jar" | head -n 1)
 if [ -z "$JAR_SOURCE" ]; then
     echo "[ERREUR] Aucun fichier JAR généré dans target/."
@@ -55,18 +57,18 @@ cp -r "${SOURCE_BASH}/"* "${INSTALL_DIR}/bash/" 2>/dev/null || true
 chmod -R +x "${INSTALL_DIR}/bash/"
 chmod 755 /var/log/sentinelle
 
-echo "[6/6] Démarrage du Backend Spring Boot"
+echo "[6/6] Démarrage du backend Spring Boot"
 nohup java -jar "${INSTALL_DIR}/backend/sentinelle-backend-4.0.0.jar" > /var/log/sentinelle/backend.log 2>&1 &
 
-echo "Attente de l'initialisation du port 8080..."
-for i in {1..20}; do
+echo "Attente du démarrage du serveur sur le port 8080..."
+for i in {1..15}; do
     if curl -s http://localhost:8080/api/metrics >/dev/null 2>&1; then
-        echo "[OK] Backend Spring Boot actif sur le port 8080."
+        echo "[OK] Backend actif et à l'écoute sur 8080."
         break
     fi
     sleep 1
 done
 
 echo "==============================================================="
-echo " Backend Spring Boot & Scripts déployés et démarrés"
+echo " Backend Spring Boot prêt"
 echo "==============================================================="
