@@ -32,7 +32,7 @@ if [[ ! -f "/etc/mysql/sentinelle.cnf" ]]; then
         cat <<EOF > /etc/mysql/sentinelle.cnf
 [client]
 user=sentinelle
-password=sentinelle_password
+password=SentinelleSecurePass2026!
 host=localhost
 database=sentinelle
 EOF
@@ -49,6 +49,7 @@ echo "[2/4] Attribution des droits d'exécution sur les scripts Bash"
 chmod +x "${MONITORING_DIR}/bash/collector.sh" 2>/dev/null || true
 chmod +x "${MONITORING_DIR}/bash/collect/"*.sh 2>/dev/null || true
 chmod +x "${MONITORING_DIR}/bash/utils/"*.sh 2>/dev/null || true
+chmod +x /opt/sentinelle/bash/*.sh 2>/dev/null || true
 
 # 3. Génération et installation de l'unité Systemd de collecte
 echo "[3/4] Installation du service Systemd pour la collecte temps réel"
@@ -73,14 +74,23 @@ EOF
 echo "[4/4] Activation et démarrage des services"
 systemctl daemon-reload
 
-if systemctl enable --now sentinelle-monitor.service 2>/dev/null; then
-    echo "[OK] Service sentinelle-monitor activé et démarré."
-fi
+systemctl enable sentinelle-monitor.service 2>/dev/null || true
+systemctl restart sentinelle-monitor.service 2>/dev/null || true
+echo "[OK] Service sentinelle-monitor activé et démarré."
 
-if systemctl is-active --quiet sentinelle-backend.service 2>/dev/null; then
-    systemctl restart sentinelle-backend.service || true
-    echo "[OK] Service sentinelle-backend redémarré."
-fi
+systemctl enable sentinelle-backend.service 2>/dev/null || true
+systemctl restart sentinelle-backend.service 2>/dev/null || true
+echo "[OK] Service sentinelle-backend redémarré."
+
+echo "Attente du démarrage effectif de Spring Boot (port 8080)..."
+for i in {1..30}; do
+    if (exec 3<>/dev/tcp/127.0.0.1/8080) 2>/dev/null; then
+        exec 3>&- 2>/dev/null || true
+        echo "[OK] L'API Spring Boot répond sur le port 8080."
+        break
+    fi
+    sleep 1
+done
 
 echo "==============================================================="
 echo " Services Systemd configurés et démarrés avec succès !"
