@@ -16,6 +16,6 @@ execute_query() {
         return 1
     fi
 
-    sudo mysql --defaults-extra-file="$MYSQL_CONF" -D sentinelle -e "$QUERY" 2>/dev/null
+    sudo mysql --defaults-extra-file="$MYSQL_CONF" sentinelle -e "$QUERY" 2>/dev/null
     return $?
 }
