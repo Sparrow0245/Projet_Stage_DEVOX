@@ -11,10 +11,6 @@ echo "==============================================================="
 echo " [08/09] Recette et vérification de la plateforme Sentinelle V4"
 echo "==============================================================="
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-BASE_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
-MONITORING_DIR="${BASE_DIR}/monitoring/04_sentinelle_supervision_securisee"
-
 ERRORS=0
 
 # 1. Test MariaDB
@@ -28,8 +24,8 @@ fi
 
 # 2. Test Collector
 echo -n "[TEST 2/5] Vérification de la présence du collector... "
-COLLECTOR="${MONITORING_DIR}/bash/collector.sh"
-if [[ -f "${COLLECTOR}" ]]; then
+COLLECTOR=$(find /home/serveur/Projet_Stage_DEVOX /opt/sentinelle -name "collector.sh" 2>/dev/null | head -n 1)
+if [[ -n "${COLLECTOR}" && -f "${COLLECTOR}" ]]; then
     echo "OK (${COLLECTOR})"
 else
     echo "ÉCHEC (Script introuvable)"
@@ -51,15 +47,15 @@ echo -n "[TEST 4/5] État du service de collecte Systemd... "
 if systemctl is-active --quiet sentinelle-monitor.service 2>/dev/null || systemctl is-active --quiet mariadb; then
     echo "OK (Services actifs)"
 else
-    echo "AVERTISSEMENT (Service inactif)"
+    echo "ÉCHEC (Services inactifs)"
     ERRORS=$((ERRORS + 1))
 fi
 
-# 5. Test API avec boucle d'attente
+# 5. Test API Spring Boot
 echo -n "[TEST 5/5] Accessibilité API Spring Boot (/api/metrics)... "
 HTTP_CODE="000"
-for i in {1..20}; do
-    CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/api/metrics 2>/dev/null || echo "000")
+for i in {1..30}; do
+    CODE=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 2 http://localhost:8080/api/metrics 2>/dev/null || echo "000")
     if [ "${CODE}" -eq 200 ] || [ "${CODE}" -eq 401 ]; then
         HTTP_CODE="${CODE}"
         break
