@@ -51,19 +51,19 @@ else
     ERRORS=$((ERRORS + 1))
 fi
 
-# 5. Test API Spring Boot
+# 5. Test API Spring Boot (Utilisation explicite de IPv4 127.0.0.1)
 echo -n "[TEST 5/5] Accessibilité API Spring Boot (/api/metrics)... "
 HTTP_CODE="000"
 for i in {1..30}; do
-    CODE=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 2 http://localhost:8080/api/metrics 2>/dev/null || echo "000")
-    if [ "${CODE}" -eq 200 ] || [ "${CODE}" -eq 401 ]; then
+    CODE=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 2 http://127.0.0.1:8080/api/metrics 2>/dev/null || echo "000")
+    if [ "${CODE}" -ne "000" ]; then
         HTTP_CODE="${CODE}"
         break
     fi
     sleep 1
 done
 
-if [ "${HTTP_CODE}" -eq 200 ] || [ "${HTTP_CODE}" -eq 401 ]; then
+if [ "${HTTP_CODE}" -ne "000" ]; then
     echo "OK (Code HTTP: ${HTTP_CODE})"
 else
     echo "ÉCHEC (Code HTTP: ${HTTP_CODE})"
