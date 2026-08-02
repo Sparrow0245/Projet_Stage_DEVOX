@@ -23,7 +23,6 @@ if [[ $EUID -ne 0 ]]; then
     exit 1
 fi
 
-echo
 echo "[1/6] Création de l'arborescence /opt/sentinelle"
 mkdir -p \
     "${INSTALL_DIR}/backend" \
@@ -33,18 +32,16 @@ mkdir -p \
     /var/log/sentinelle \
     /tmp/sentinelle
 
-echo
-echo "[2/6] Arrêt des anciennes instances du backend"
+echo "[2/6] Nettoyage des anciennes instances Java"
 pkill -f "sentinelle-backend" 2>/dev/null || true
+pkill -f "java -jar" 2>/dev/null || true
 sleep 1
 
-echo
 echo "[3/6] Compilation Maven du Backend"
 cd "${SOURCE_BACKEND}"
 mvn clean package -DskipTests
 
-echo
-echo "[4/6] Déploiement de l'exécutable JAR"
+echo "[4/6] Déploiement du fichier JAR"
 JAR_SOURCE=$(find target/ -name "*.jar" ! -name "*sources.jar" | head -n 1)
 if [ -z "$JAR_SOURCE" ]; then
     echo "[ERREUR] Aucun fichier JAR généré dans target/."
@@ -52,27 +49,24 @@ if [ -z "$JAR_SOURCE" ]; then
 fi
 cp "$JAR_SOURCE" "${INSTALL_DIR}/backend/sentinelle-backend-4.0.0.jar"
 
-echo
 echo "[5/6] Copie des configurations et scripts Bash"
-cp -r "${SOURCE_CONFIG}/"* "${INSTALL_DIR}/config/"
-cp -r "${SOURCE_BASH}/"* "${INSTALL_DIR}/bash/"
+cp -r "${SOURCE_CONFIG}/"* "${INSTALL_DIR}/config/" 2>/dev/null || true
+cp -r "${SOURCE_BASH}/"* "${INSTALL_DIR}/bash/" 2>/dev/null || true
 chmod -R +x "${INSTALL_DIR}/bash/"
 chmod 755 /var/log/sentinelle
 
-echo
-echo "[6/6] Démarrage du service Backend Spring Boot"
+echo "[6/6] Démarrage du Backend Spring Boot"
 nohup java -jar "${INSTALL_DIR}/backend/sentinelle-backend-4.0.0.jar" > /var/log/sentinelle/backend.log 2>&1 &
 
-# Attente active du port 8080
-echo "Attente de l'initialisation du backend sur le port 8080..."
-for i in {1..15}; do
+echo "Attente de l'initialisation du port 8080..."
+for i in {1..20}; do
     if curl -s http://localhost:8080/api/metrics >/dev/null 2>&1; then
-        echo "[OK] Spring Boot actif sur le port 8080 !"
+        echo "[OK] Backend Spring Boot actif sur le port 8080."
         break
     fi
     sleep 1
 done
 
 echo "==============================================================="
-echo " Backend Spring Boot & Scripts déployés et démarrés dans ${INSTALL_DIR}"
+echo " Backend Spring Boot & Scripts déployés et démarrés"
 echo "==============================================================="
