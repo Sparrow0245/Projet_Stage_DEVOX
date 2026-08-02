@@ -58,17 +58,16 @@ chmod -R +x "${INSTALL_DIR}/bash/"
 chmod 755 /var/log/sentinelle
 
 echo "[6/6] Démarrage du backend Spring Boot"
-nohup java -jar "${INSTALL_DIR}/backend/sentinelle-backend-4.0.0.jar" > /var/log/sentinelle/backend.log 2>&1 &
+cd "${INSTALL_DIR}/backend"
+nohup java -jar "${INSTALL_DIR}/backend/sentinelle-backend-4.0.0.jar" --spring.config.location=file:${INSTALL_DIR}/config/ > /var/log/sentinelle/backend.log 2>&1 &
 
-echo "Attente de l'ouverture du port 8080..."
-for i in {1..20}; do
-    if curl -s http://localhost:8080/api/metrics >/dev/null 2>&1; then
-        echo "[OK] Spring Boot actif sur le port 8080."
-        break
-    fi
-    sleep 1
-done
+# Exécution immédiate d'une collecte pour peupler la table metrics avant les tests
+if [ -f "${INSTALL_DIR}/bash/collector.sh" ]; then
+    bash "${INSTALL_DIR}/bash/collector.sh" >/dev/null 2>&1 || true
+fi
+
+sleep 2
 
 echo "==============================================================="
-echo " Backend Spring Boot & Scripts déployés et démarrés dans ${INSTALL_DIR}"
+echo " Backend Spring Boot & Scripts déployés"
 echo "==============================================================="
