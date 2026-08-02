@@ -58,7 +58,17 @@ fi
 
 # 5. Test de l'API REST Spring Boot Java (port 8080)
 echo -n "[TEST 5/5] Accessibilité API Spring Boot (/api/metrics)... "
-HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/api/metrics || echo "000")
+
+HTTP_CODE="000"
+for i in {1..20}; do
+    CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/api/metrics 2>/dev/null || echo "000")
+    if [ "${CODE}" -eq 200 ] || [ "${CODE}" -eq 401 ]; then
+        HTTP_CODE="${CODE}"
+        break
+    fi
+    sleep 1
+done
+
 if [ "${HTTP_CODE}" -eq 200 ] || [ "${HTTP_CODE}" -eq 401 ]; then
     echo "OK (Code HTTP: ${HTTP_CODE})"
 else
