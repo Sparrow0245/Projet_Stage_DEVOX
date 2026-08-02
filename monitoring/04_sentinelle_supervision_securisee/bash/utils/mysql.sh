@@ -16,7 +16,6 @@ execute_query() {
         return 1
     fi
 
-    # Supression de sudo : les identifiants sont déjà dans $MYSQL_CONF
     mysql --defaults-extra-file="$MYSQL_CONF" sentinelle -e "$QUERY" 2>/dev/null
     return $?
 }
