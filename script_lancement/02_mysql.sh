@@ -13,27 +13,22 @@ DB_USER="sentinelle"
 DB_PASS="SentinelleSecurePass2026!"
 DB_NAME="sentinelle"
 
-# Purge complète de la base pour réinsérer le schéma valide
-sudo mariadb -e "DROP DATABASE IF EXISTS ${DB_NAME};"
-sudo mariadb -e "CREATE DATABASE ${DB_NAME};"
+mariadb -u root -e "CREATE DATABASE IF NOT EXISTS ${DB_NAME};"
+mariadb -u root -e "CREATE USER IF NOT EXISTS '${DB_USER}'@'localhost' IDENTIFIED BY '${DB_PASS}';"
+mariadb -u root -e "GRANT ALL PRIVILEGES ON ${DB_NAME}.* TO '${DB_USER}'@'localhost';"
+mariadb -u root -e "CREATE USER IF NOT EXISTS 'sentinelle_user'@'localhost' IDENTIFIED BY 'Sentinelle2026!';"
+mariadb -u root -e "GRANT ALL PRIVILEGES ON ${DB_NAME}.* TO 'sentinelle_user'@'localhost';"
+mariadb -u root -e "FLUSH PRIVILEGES;"
 
-# Droits d'accès utilisateurs
-sudo mariadb -e "CREATE USER IF NOT EXISTS '${DB_USER}'@'localhost' IDENTIFIED BY '${DB_PASS}';"
-sudo mariadb -e "GRANT ALL PRIVILEGES ON ${DB_NAME}.* TO '${DB_USER}'@'localhost';"
-sudo mariadb -e "CREATE USER IF NOT EXISTS 'sentinelle_user'@'localhost' IDENTIFIED BY 'Sentinelle2026!';"
-sudo mariadb -e "GRANT ALL PRIVILEGES ON ${DB_NAME}.* TO 'sentinelle_user'@'localhost';"
-sudo mariadb -e "FLUSH PRIVILEGES;"
-
-# Structure des tables requises par l'application
-sudo mariadb "${DB_NAME}" << 'EOF'
-CREATE TABLE hosts (
+mariadb -u root "${DB_NAME}" << 'EOF'
+CREATE TABLE IF NOT EXISTS hosts (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     hostname VARCHAR(255) NOT NULL,
     ip_address VARCHAR(45) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE metrics (
+CREATE TABLE IF NOT EXISTS metrics (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     host_id BIGINT NOT NULL DEFAULT 1,
     cpu_usage DOUBLE NOT NULL DEFAULT 0,
@@ -44,7 +39,7 @@ CREATE TABLE metrics (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE events (
+CREATE TABLE IF NOT EXISTS events (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     host_id BIGINT NOT NULL DEFAULT 1,
     type VARCHAR(50) NOT NULL,
@@ -54,7 +49,7 @@ CREATE TABLE events (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE services_status (
+CREATE TABLE IF NOT EXISTS services_status (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     host_id BIGINT NOT NULL DEFAULT 1,
     service_name VARCHAR(100) NOT NULL UNIQUE,
@@ -62,7 +57,8 @@ CREATE TABLE services_status (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
-INSERT INTO hosts (id, hostname, ip_address) VALUES (1, 'localhost', '127.0.0.1');
+INSERT INTO hosts (id, hostname, ip_address) VALUES (1, 'localhost', '127.0.0.1')
+ON DUPLICATE KEY UPDATE id=1;
 EOF
 
-echo "[SUCCÈS] Base de données 'sentinelle' réinitialisée."
+echo "[SUCCÈS] Base de données 'sentinelle' et tables initialisées."
