@@ -2,7 +2,7 @@
 
 ###############################################################################
 # Projet Stage DEVOX
-# Déploiement Frontend - Sentinelle V4
+# Déploiement Frontend - Sentinelle V4 (Correctif de persistance des métriques)
 ###############################################################################
 
 set -euo pipefail
@@ -307,7 +307,7 @@ header('Content-Type: application/json');
 require_once __DIR__ . '/../config/database.php';
 
 try {
-    $stmt = $pdo->prepare("SELECT * FROM (SELECT * FROM metrics ORDER BY id DESC LIMIT 20) sub ORDER BY id ASC");
+    $stmt = $pdo->prepare("SELECT * FROM (SELECT * FROM metrics ORDER BY id DESC LIMIT 50) sub ORDER BY id ASC");
     $stmt->execute();
     $metrics = $stmt->fetchAll(PDO::FETCH_ASSOC);
     echo json_encode(['status' => 'success', 'data' => $metrics], JSON_PRETTY_PRINT);
@@ -392,7 +392,7 @@ th { background: #0f172a; color: #38bdf8; }
 tr:hover { background: #334155; }
 EOF
 
-# 7. JavaScript dynamique du Dashboard
+# 7. JavaScript dynamique du Dashboard (Correctif Maintien des valeurs non-nulles)
 cat <<'EOF' > "${SOURCE_WEB}/assets/js/dashboard.js"
 document.addEventListener('DOMContentLoaded', () => {
     let chartInstance = null;
@@ -426,18 +426,41 @@ document.addEventListener('DOMContentLoaded', () => {
             .then(res => {
                 if (res.status === 'success' && res.data && res.data.length > 0) {
                     const data = res.data;
-                    const latest = data[data.length - 1];
 
-                    if (document.getElementById('val-cpu')) document.getElementById('val-cpu').textContent = `${parseFloat(latest.cpu_usage || 0).toFixed(1)} %`;
-                    if (document.getElementById('val-ram')) document.getElementById('val-ram').textContent = `${parseFloat(latest.ram_usage || 0).toFixed(1)} %`;
-                    if (document.getElementById('val-disk')) document.getElementById('val-disk').textContent = `${parseFloat(latest.disk_usage || 0).toFixed(1)} %`;
-                    if (document.getElementById('val-swap')) document.getElementById('val-swap').textContent = `${parseFloat(latest.swap_usage || 0).toFixed(1)} %`;
+                    // Récupère la dernière valeur > 0 disponible dans l'historique récent
+                    const getLastValid = (key) => {
+                        for (let i = data.length - 1; i >= 0; i--) {
+                            let val = parseFloat(data[i][key]);
+                            if (!isNaN(val) && val > 0) return val;
+                        }
+                        return 0;
+                    };
 
+                    const cpuVal = getLastValid('cpu_usage');
+                    const ramVal = getLastValid('ram_usage');
+                    const diskVal = getLastValid('disk_usage');
+                    const swapVal = getLastValid('swap_usage');
+
+                    if (document.getElementById('val-cpu')) document.getElementById('val-cpu').textContent = `${cpuVal.toFixed(1)} %`;
+                    if (document.getElementById('val-ram')) document.getElementById('val-ram').textContent = `${ramVal.toFixed(1)} %`;
+                    if (document.getElementById('val-disk')) document.getElementById('val-disk').textContent = `${diskVal.toFixed(1)} %`;
+                    if (document.getElementById('val-swap')) document.getElementById('val-swap').textContent = `${swapVal.toFixed(1)} %`;
+
+                    // Lissage des données pour le graphique (conserve la valeur précédente si la nouvelle est 0)
                     if (chartInstance) {
+                        const fillForward = (key) => {
+                            let last = 0;
+                            return data.map(d => {
+                                let v = parseFloat(d[key] || 0);
+                                if (v > 0) last = v;
+                                return last;
+                            });
+                        };
+
                         chartInstance.data.labels = data.map(d => d.created_at ? d.created_at.split(' ')[1] : '');
-                        chartInstance.data.datasets[0].data = data.map(d => d.cpu_usage || 0);
-                        chartInstance.data.datasets[1].data = data.map(d => d.ram_usage || 0);
-                        chartInstance.data.datasets[2].data = data.map(d => d.disk_usage || 0);
+                        chartInstance.data.datasets[0].data = fillForward('cpu_usage');
+                        chartInstance.data.datasets[1].data = fillForward('ram_usage');
+                        chartInstance.data.datasets[2].data = fillForward('disk_usage');
                         chartInstance.update();
                     }
                 }
@@ -466,7 +489,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     initChart();
     refreshData();
-    setInterval(refreshData, 5000);
+    setInterval(refreshData, 3000);
 });
 EOF
 
