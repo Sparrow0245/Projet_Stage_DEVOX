@@ -1,1 +1,79 @@
+#!/bin/bash
 
+###############################################################################
+# Projet Stage DEVOX
+# Script 08 - Tests de validation et recette du système
+###############################################################################
+
+set -euo pipefail
+
+echo "==============================================================="
+echo " [08/09] Recette et vérification de la plateforme Sentinelle V4"
+echo "==============================================================="
+
+ERRORS=0
+
+# 1. Test MariaDB
+echo -n "[TEST 1/5] Connexion Base de Données 'sentinelle'... "
+if mysql --defaults-extra-file=/etc/mysql/sentinelle.cnf sentinelle -e "SELECT 1;" &>/dev/null; then
+    echo "OK"
+else
+    echo "ÉCHEC"
+    ERRORS=$((ERRORS + 1))
+fi
+
+# 2. Test Collector
+echo -n "[TEST 2/5] Vérification de la présence du collector... "
+COLLECTOR=$(find /home/serveur/Projet_Stage_DEVOX /opt/sentinelle -name "collector.sh" 2>/dev/null | head -n 1)
+if [[ -n "${COLLECTOR}" && -f "${COLLECTOR}" ]]; then
+    echo "OK (${COLLECTOR})"
+else
+    echo "ÉCHEC (Script introuvable)"
+    ERRORS=$((ERRORS + 1))
+fi
+
+# 3. Test des métriques
+echo -n "[TEST 3/5] Insertion des métriques en BDD... "
+METRIC_COUNT=$(mysql --defaults-extra-file=/etc/mysql/sentinelle.cnf sentinelle -N -e "SELECT COUNT(*) FROM metrics;" 2>/dev/null || echo 0)
+if [ "${METRIC_COUNT}" -gt 0 ]; then
+    echo "OK (${METRIC_COUNT} entrées)"
+else
+    echo "ÉCHEC (Aucune donnée dans la table metrics)"
+    ERRORS=$((ERRORS + 1))
+fi
+
+# 4. Test Systemd
+echo -n "[TEST 4/5] État du service de collecte Systemd... "
+if systemctl is-active --quiet sentinelle-monitor.service 2>/dev/null || systemctl is-active --quiet mariadb; then
+    echo "OK (Services actifs)"
+else
+    echo "ÉCHEC (Services inactifs)"
+    ERRORS=$((ERRORS + 1))
+fi
+
+# 5. Test API Spring Boot sur Port 8081
+echo -n "[TEST 5/5] Accessibilité API Spring Boot (http://127.0.0.1:8081/api/metrics)... "
+HTTP_CODE="000"
+for i in {1..30}; do
+    CODE=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 2 http://127.0.0.1:8081/api/metrics 2>/dev/null || echo "000")
+    if [ "${CODE}" -ne "000" ]; then
+        HTTP_CODE="${CODE}"
+        break
+    fi
+    sleep 1
+done
+
+if [ "${HTTP_CODE}" -ne "000" ]; then
+    echo "OK (Code HTTP: ${HTTP_CODE})"
+else
+    echo "ÉCHEC (Code HTTP: ${HTTP_CODE})"
+    ERRORS=$((ERRORS + 1))
+fi
+
+echo "---------------------------------------------------------------"
+if [ "${ERRORS}" -eq 0 ]; then
+    echo " SUCCESS : Tous les tests de recette sont validés !"
+else
+    echo " ATTENTION : ${ERRORS} test(s) ont échoué. Vérifiez les logs."
+fi
+echo "==============================================================="
