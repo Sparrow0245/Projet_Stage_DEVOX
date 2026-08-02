@@ -13,15 +13,24 @@ DB_USER="sentinelle"
 DB_PASS="SentinelleSecurePass2026!"
 DB_NAME="sentinelle"
 
-# Création de la BDD et des privilèges
+# Création BDD et utilisateurs
 sudo mariadb -e "CREATE DATABASE IF NOT EXISTS ${DB_NAME};"
 sudo mariadb -e "CREATE USER IF NOT EXISTS '${DB_USER}'@'localhost' IDENTIFIED BY '${DB_PASS}';"
 sudo mariadb -e "GRANT ALL PRIVILEGES ON ${DB_NAME}.* TO '${DB_USER}'@'localhost';"
-sudo mariadb -e "CREATE USER IF NOT EXISTS 'sentinelle_user'@'localhost' IDENTIFIED BY 'Sentinelle2026!';"
-sudo mariadb -e "GRANT ALL PRIVILEGES ON ${DB_NAME}.* TO 'sentinelle_user'@'localhost';"
 sudo mariadb -e "FLUSH PRIVILEGES;"
 
-# Structure des tables
+# Génération automatique du fichier CNF pour les scripts de recette
+sudo mkdir -p /etc/mysql
+sudo bash -c "cat << EOF > /etc/mysql/sentinelle.cnf
+[client]
+user=${DB_USER}
+password=${DB_PASS}
+host=localhost
+database=${DB_NAME}
+EOF"
+sudo chmod 600 /etc/mysql/sentinelle.cnf
+
+# Initialisation des tables et données de test
 sudo mariadb "${DB_NAME}" << 'EOF'
 CREATE TABLE IF NOT EXISTS hosts (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -62,9 +71,8 @@ CREATE TABLE IF NOT EXISTS services_status (
 INSERT INTO hosts (id, hostname, ip_address) VALUES (1, 'localhost', '127.0.0.1')
 ON DUPLICATE KEY UPDATE id=1;
 
--- Donnée initiale pour alimenter le Dashboard et valider la recette
 INSERT INTO metrics (host_id, cpu_usage, ram_usage, disk_usage, swap_usage)
 VALUES (1, 15.0, 42.0, 35.0, 0.0);
 EOF
 
-echo "[SUCCÈS] Base de données 'sentinelle' et tables initialisées."
+echo "[SUCCÈS] BDD et fichier /etc/mysql/sentinelle.cnf configurés."
