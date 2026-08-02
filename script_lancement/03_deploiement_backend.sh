@@ -2,7 +2,7 @@
 
 ###############################################################################
 # Projet Stage DEVOX
-# Compilation & Déploiement du Backend Spring Boot Java 21
+# Compilation & Déploiement du Backend Spring Boot Java 21 via Systemd
 ###############################################################################
 
 set -euo pipefail
@@ -25,10 +25,10 @@ if [[ $EUID -ne 0 ]]; then
     exit 1
 fi
 
-echo "[1/6] Libération du port 8080 et nettoyage des anciens processus Java"
+echo "[1/6] Nettoyage des anciennes instances Java et services"
+systemctl stop sentinelle-backend 2>/dev/null || true
 fuser -k 8080/tcp 2>/dev/null || true
 pkill -9 -f "sentinelle-backend" 2>/dev/null || true
-pkill -9 -f "java" 2>/dev/null || true
 sleep 1
 
 echo "[2/6] Création de l'arborescence /opt/sentinelle"
@@ -58,18 +58,36 @@ cp -r "${SOURCE_BASH}/"* "${INSTALL_DIR}/bash/" 2>/dev/null || true
 chmod -R +x "${INSTALL_DIR}/bash/"
 chmod 755 /var/log/sentinelle
 
-echo "[6/6] Démarrage du backend Spring Boot"
-cd "${INSTALL_DIR}/backend"
-nohup java -jar "${INSTALL_DIR}/backend/sentinelle-backend-4.0.0.jar" \
-    --server.port=8080 \
-    --spring.config.additional-location=optional:file:${INSTALL_DIR}/config/ \
-    > /var/log/sentinelle/backend.log 2>&1 < /dev/null &
+echo "[6/6] Configuration et démarrage du service Systemd backend"
+cat << 'EOF' > /etc/systemd/system/sentinelle-backend.service
+[Unit]
+Description=Sentinelle V4 Backend Spring Boot Service
+After=network.target mariadb.service
 
-echo "Vérification de la disponibilité de l'API sur le port 8080..."
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/sentinelle/backend
+ExecStart=/usr/bin/java -jar /opt/sentinelle/backend/sentinelle-backend-4.0.0.jar --server.port=8080 --spring.config.additional-location=optional:file:/opt/sentinelle/config/
+Restart=always
+RestartSec=3
+StandardOutput=file:/var/log/sentinelle/backend.log
+StandardError=file:/var/log/sentinelle/backend.log
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+systemctl daemon-reload
+systemctl enable sentinelle-backend.service
+systemctl restart sentinelle-backend.service
+
+echo "Attente de l'initialisation de l'API Spring Boot sur le port 8080..."
 SUCCESS=0
-for i in {1..25}; do
-    if curl -s -f http://localhost:8080/api/metrics >/dev/null 2>&1; then
-        echo "[OK] Backend Spring Boot opérationnel sur 8080."
+for i in {1..30}; do
+    HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/api/metrics || echo "000")
+    if [ "$HTTP_CODE" -eq 200 ]; then
+        echo "[OK] API Spring Boot fonctionnelle sur 8080 (Code HTTP 200)."
         SUCCESS=1
         break
     fi
@@ -77,10 +95,10 @@ for i in {1..25}; do
 done
 
 if [ $SUCCESS -eq 0 ]; then
-    echo "[AVERTISSEMENT] Le port 8080 ne répond pas encore. Extrait du log :"
-    tail -n 15 /var/log/sentinelle/backend.log 2>/dev/null || true
+    echo "[AVERTISSEMENT] Le service n'a pas répondu à temps. Logs récents :"
+    tail -n 20 /var/log/sentinelle/backend.log 2>/dev/null || true
 fi
 
 echo "==============================================================="
-echo " Backend Spring Boot & Scripts déployés"
+echo " Backend Spring Boot déployé et géré via Systemd"
 echo "==============================================================="
