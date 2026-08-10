@@ -1,0 +1,144 @@
+services:
+
+  ###########################################################################
+  # COLLECTEUR SENTINELLE
+  ###########################################################################
+
+  sentinelle-collector:
+    build:
+      context: ..
+      dockerfile: deploiement_docker/collector/Dockerfile
+
+    container_name: sentinelle-collector
+
+    restart: unless-stopped
+
+    env_file:
+      - .env
+
+    environment:
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+
+      HOST_ID: ${HOST_ID:-1}
+      COLLECT_INTERVAL: ${COLLECT_INTERVAL:-2}
+
+    pid: host
+
+    privileged: true
+
+    network_mode: host
+
+    volumes:
+      - /:/host:ro
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /run:/host/run:ro
+      - /var/log:/host/var/log:ro
+      - /etc:/host/etc:ro
+
+    depends_on:
+      - sentinelle-db
+
+  ###########################################################################
+  # BACKEND SPRING BOOT
+  ###########################################################################
+
+  sentinelle-backend:
+    build:
+      context: ..
+      dockerfile: deploiement_docker/backend/Dockerfile
+
+    container_name: sentinelle-backend
+
+    restart: unless-stopped
+
+    env_file:
+      - .env
+
+    environment:
+      SERVER_PORT: ${APP_PORT:-8080}
+
+      SPRING_DATASOURCE_URL: jdbc:mysql://${DB_HOST}:${DB_PORT}/${DB_NAME}?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: ${DB_USER}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+
+      SPRING_JPA_HIBERNATE_DDL_AUTO: validate
+
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-28800}
+
+    ports:
+      - "${APP_PORT:-8080}:8080"
+
+    depends_on:
+      - sentinelle-db
+
+  ###########################################################################
+  # INTERFACE WEB APACHE + PHP
+  ###########################################################################
+
+  sentinelle-web:
+    build:
+      context: ..
+      dockerfile: deploiement_docker/web/Dockerfile
+
+    container_name: sentinelle-web
+
+    restart: unless-stopped
+
+    env_file:
+      - .env
+
+    environment:
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+
+      BACKEND_HOST: sentinelle-backend
+      BACKEND_PORT: 8080
+
+    ports:
+      - "${WEB_PORT:-8080}:80"
+
+    depends_on:
+      - sentinelle-backend
+
+  ###########################################################################
+  # MARIADB LOCAL
+  #
+  # Ce service est destiné au mode DB_MODE=local.
+  ###########################################################################
+
+  sentinelle-db:
+    build:
+      context: ..
+      dockerfile: deploiement_docker/database/Dockerfile
+
+    container_name: sentinelle-db
+
+    restart: unless-stopped
+
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+
+    volumes:
+      - sentinelle-db-data:/var/lib/mysql
+
+    ports:
+      - "127.0.0.1:${DB_PORT:-3306}:3306"
+
+###############################################################################
+# VOLUMES
+###############################################################################
+
+volumes:
+  sentinelle-db-data:
