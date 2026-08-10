@@ -1,75 +1,86 @@
+#!/bin/bash
+
 ###############################################################################
 # SENTINELLE V4
-# Collector Bash Docker
+# Entrypoint Collector Docker
 ###############################################################################
 
-FROM ubuntu:24.04
+set -euo pipefail
 
-LABEL org.opencontainers.image.title="Sentinelle Collector"
-LABEL org.opencontainers.image.description="Collector Bash Sentinelle pour hôte Linux"
-LABEL org.opencontainers.image.version="4.0.0"
-
-ENV DEBIAN_FRONTEND=noninteractive
-
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-        bash \
-        bc \
-        coreutils \
-        procps \
-        sysstat \
-        iproute2 \
-        iputils-ping \
-        net-tools \
-        lsof \
-        util-linux \
-        systemd \
-        mariadb-client \
-        ca-certificates \
-        curl \
-        jq \
-        openssh-client && \
-    rm -rf /var/lib/apt/lists/*
-
-WORKDIR /opt/sentinelle
+echo "==============================================================="
+echo "       SENTINELLE V4 - COLLECTOR DOCKER"
+echo "==============================================================="
 
 ###############################################################################
-# COPIE DES SCRIPTS EXISTANTS
+# CONFIGURATION MYSQL
 ###############################################################################
 
-COPY monitoring/04_sentinelle_supervision_securisee/bash \
-    /opt/sentinelle/bash
+mkdir -p /etc/mysql
 
-COPY monitoring/04_sentinelle_supervision_securisee/config/thresholds.json \
-    /opt/sentinelle/config/thresholds.json
+cat > /etc/mysql/sentinelle.cnf <<EOF
+[client]
+host=${DB_HOST}
+port=${DB_PORT}
+user=${DB_USER}
+password=${DB_PASSWORD}
+database=${DB_NAME}
+EOF
 
-###############################################################################
-# OUTILS D'ADAPTATION A L'HOTE
-###############################################################################
+chmod 600 /etc/mysql/sentinelle.cnf
 
-COPY deploiement_docker/collector/host-tools/df \
-    /opt/sentinelle/host-tools/df
-
-COPY deploiement_docker/collector/host-tools/systemctl \
-    /opt/sentinelle/host-tools/systemctl
-
-COPY deploiement_docker/collector/host-tools/journalctl \
-    /opt/sentinelle/host-tools/journalctl
+export DB_CNF="/etc/mysql/sentinelle.cnf"
 
 ###############################################################################
-# ENTRYPOINT
+# VARIABLES SENTINELLE
 ###############################################################################
 
-COPY deploiement_docker/collector/entrypoint.sh \
-    /opt/sentinelle/entrypoint.sh
+export HOST_ID="${HOST_ID:-1}"
 
-RUN chmod +x /opt/sentinelle/entrypoint.sh && \
-    chmod +x /opt/sentinelle/host-tools/* && \
-    find /opt/sentinelle/bash \
-        -type f \
-        -name "*.sh" \
-        -exec chmod +x {} \;
+###############################################################################
+# ATTENTE BDD
+###############################################################################
 
-ENV PATH="/opt/sentinelle/host-tools:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+echo "[INFO] Attente de MySQL/MariaDB..."
 
-ENTRYPOINT ["/opt/sentinelle/entrypoint.sh"]
+MAX_RETRIES=60
+RETRY=0
+
+until mysql \
+    --defaults-extra-file=/etc/mysql/sentinelle.cnf \
+    --connect-timeout=3 \
+    "${DB_NAME}" \
+    -e "SELECT 1;" >/dev/null 2>&1
+do
+
+    RETRY=$((RETRY + 1))
+
+    if [ "${RETRY}" -ge "${MAX_RETRIES}" ]; then
+        echo "[ERREUR] Impossible de joindre ${DB_HOST}:${DB_PORT}"
+        exit 1
+    fi
+
+    sleep 2
+done
+
+echo "[OK] Base de données accessible."
+
+###############################################################################
+# VERIFICATION DE L'HOTE
+###############################################################################
+
+if [ ! -d /host ]; then
+    echo "[ERREUR] Le système de fichiers de l'hôte n'est pas monté."
+    exit 1
+fi
+
+echo "[OK] Système de fichiers de l'hôte accessible."
+
+###############################################################################
+# LANCEMENT COLLECTOR
+###############################################################################
+
+cd /opt/sentinelle/bash
+
+echo "[INFO] Lancement du collector Sentinelle..."
+
+exec /bin/bash /opt/sentinelle/bash/collector.sh
