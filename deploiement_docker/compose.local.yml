@@ -1,0 +1,42 @@
+services:
+
+  sentinelle-db:
+    build:
+      context: ..
+      dockerfile: deploiement_docker/database/Dockerfile
+
+    container_name: sentinelle-db
+
+    restart: unless-stopped
+
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+
+    volumes:
+      - sentinelle-db-data:/var/lib/mysql
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "mariadb-admin ping -h 127.0.0.1 -u root -p\"$${MYSQL_ROOT_PASSWORD}\" --silent"
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  sentinelle-collector:
+    depends_on:
+      sentinelle-db:
+        condition: service_healthy
+
+  sentinelle-web:
+    depends_on:
+      sentinelle-db:
+        condition: service_healthy
+
+volumes:
+  sentinelle-db-data:
