@@ -1,0 +1,83 @@
+services:
+
+  ###########################################################################
+  # COLLECTEUR
+  ###########################################################################
+
+  sentinelle-collector:
+    build:
+      context: ..
+      dockerfile: deploiement_docker/collector/Dockerfile
+
+    container_name: sentinelle-collector
+
+    restart: unless-stopped
+
+    env_file:
+      - .env
+
+    environment:
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      HOST_ID: ${HOST_ID:-1}
+      COLLECT_INTERVAL: ${COLLECT_INTERVAL:-2}
+
+    privileged: true
+
+    pid: host
+
+    network_mode: host
+
+    volumes:
+      # Racine du serveur hôte
+      - /:/host:ro
+
+      # Ressources système de l'hôte
+      - /proc:/proc:ro
+      - /sys:/sys:ro
+      - /run:/run:ro
+      - /var/log:/var/log:ro
+
+      # Socket Docker pour connaître l'état des conteneurs
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
+    depends_on:
+      sentinelle-web:
+        condition: service_started
+
+  ###########################################################################
+  # INTERFACE WEB
+  ###########################################################################
+
+  sentinelle-web:
+    build:
+      context: ..
+      dockerfile: deploiement_docker/web/Dockerfile
+
+    container_name: sentinelle-web
+
+    restart: unless-stopped
+
+    env_file:
+      - .env
+
+    environment:
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+
+    ports:
+      - "${WEB_PORT:-8080}:80"
+
+  ###########################################################################
+  # BASE DE DONNEES
+  #
+  # Le service est déclaré dans compose.local.yml.
+  #
+  # Il n'est donc PAS démarré en mode external.
+  ###########################################################################
