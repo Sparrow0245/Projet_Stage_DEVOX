@@ -1,0 +1,17 @@
+#!/bin/bash
+
+###############################################################################
+# Adaptation Docker de journalctl
+#
+# Les journaux doivent être ceux de l'hôte Linux.
+###############################################################################
+
+exec /usr/bin/nsenter \
+    -t 1 \
+    -m \
+    -u \
+    -i \
+    -n \
+    -p \
+    -- \
+    /usr/bin/journalctl "$@"
