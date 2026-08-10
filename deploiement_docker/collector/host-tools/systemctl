@@ -1,0 +1,32 @@
+#!/bin/bash
+
+###############################################################################
+# Adaptation Docker de systemctl
+#
+# Les commandes systemctl du collector doivent concerner le systemd
+# de l'hôte Linux et non un éventuel environnement systemd du conteneur.
+###############################################################################
+
+if [ "${1:-}" = "is-active" ]; then
+
+    exec /usr/bin/nsenter \
+        -t 1 \
+        -m \
+        -u \
+        -i \
+        -n \
+        -p \
+        -- \
+        /usr/bin/systemctl "$@"
+
+fi
+
+exec /usr/bin/nsenter \
+    -t 1 \
+    -m \
+    -u \
+    -i \
+    -n \
+    -p \
+    -- \
+    /usr/bin/systemctl "$@"
