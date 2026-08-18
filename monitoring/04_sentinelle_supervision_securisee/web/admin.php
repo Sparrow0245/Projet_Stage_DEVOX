@@ -85,7 +85,7 @@ try {
         <h2>📋 Journal Détaillé des Événements & Alertes</h2>
         <table>
             <thead>
-                <tr><th>ID</th><th>Horodatage</th><th>Type</th><th>Sévérité</th><th>Message Détaillé</th></tr>
+                <tr><th>ID</th><th>Horodatage</th><th>Sévérité</th><th>Type</th><th>Message Détaillé</th></tr>
             </thead>
             <tbody>
                 <?php if (empty($events)): ?>
