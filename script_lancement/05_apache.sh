@@ -29,6 +29,8 @@ cat << 'EOF' | sudo tee /etc/apache2/sites-available/sentinelle.conf > /dev/null
 
     # Redirection de l'API vers Spring Boot sur le port 8081
     ProxyPreserveHost On
+    ProxyPass /api/ http://127.0.0.1:8081/api/
+    ProxyPassReverse /api/ http://127.0.0.1:8081/api/
     ProxyPass /api http://127.0.0.1:8081/api
     ProxyPassReverse /api http://127.0.0.1:8081/api
 
@@ -36,6 +38,9 @@ cat << 'EOF' | sudo tee /etc/apache2/sites-available/sentinelle.conf > /dev/null
     CustomLog ${APACHE_LOG_DIR}/sentinelle_access.log combined
 </VirtualHost>
 EOF
+
+# Nettoyage automatique des caractères CRLF Windows dans la config
+sudo sed -i 's/\r$//' /etc/apache2/sites-available/sentinelle.conf
 
 # Activation du site et redémarrage d'Apache
 sudo a2dissite 000-default.conf 2>/dev/null || true
