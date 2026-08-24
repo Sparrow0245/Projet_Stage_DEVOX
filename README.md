@@ -2,6 +2,8 @@
 
 ## Projet de Stage en entreprise (DEVOX Rabat)
 
+Cette solution de monitoring pour Ubuntu Serveur est entièrement personnalisable en adaptant les scripts au besoin.
+Cette version est une version standard de base.
 
 ### Installer et lancer le projet :
 
