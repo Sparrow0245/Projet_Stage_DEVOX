@@ -64,4 +64,4 @@ chmod +x 09_desinstallation.sh
 ```bash
 sudo ./09_desinstallation.sh
 ```
-Confirmer la désinstallation en appuyant su "O" pour "Oui".
+Confirmer la désinstallation en appuyant sur "O" pour "Oui".
